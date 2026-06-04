@@ -323,6 +323,12 @@ public class XNAListBox : XNAPanel
             case nameof(FontIndex):
                 FontIndex = Conversions.IntFromString(value, FontIndex);
                 return;
+            case "LineHeight":
+                LineHeight = Math.Max(1, Conversions.IntFromString(value, LineHeight));
+                return;
+            case "TextBorderDistance":
+                TextBorderDistance = Conversions.IntFromString(value, TextBorderDistance);
+                return;
         }
 
         base.ParseControlINIAttribute(iniFile, key, value);

@@ -171,6 +171,10 @@ public class XNACheckBox : XNAControl
             case "Checked":
                 Checked = Conversions.BooleanFromString(value, true);
                 return;
+            case "TextPadding":
+                TextPadding = Conversions.IntFromString(value, TextPadding);
+                SetTextPositionAndSize();
+                return;
         }
 
         base.ParseControlINIAttribute(iniFile, key, value);
@@ -190,7 +194,7 @@ public class XNACheckBox : XNAControl
 
             TextLocationY = Renderer.GetTextYPadding(Text, FontIndex, CheckedTexture.Height);
 
-            Width = (int)textDimensions.X + TEXT_PADDING_DEFAULT + CheckedTexture.Width;
+            Width = (int)textDimensions.X + TextPadding + CheckedTexture.Width;
             Height = Math.Max((int)textDimensions.Y, CheckedTexture.Height);
         }
         else

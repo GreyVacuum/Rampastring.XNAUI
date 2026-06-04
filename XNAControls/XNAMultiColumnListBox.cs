@@ -58,7 +58,18 @@ public class XNAMultiColumnListBox : XNAPanel
     public int HeaderFontIndex { get; set; } = 1;
 
     public int FontIndex { get; set; }
-    public int LineHeight { get; set; }
+
+    private int _lineHeight;
+    public int LineHeight
+    {
+        get => _lineHeight;
+        set
+        {
+            _lineHeight = value;
+            foreach (XNAListBox lb in listBoxes)
+                lb.LineHeight = value;
+        }
+    }
 
     public bool DrawListBoxBorders { get; set; }
 
@@ -194,6 +205,9 @@ public class XNAMultiColumnListBox : XNAPanel
                 return;
             case nameof(FontIndex):
                 FontIndex = Conversions.IntFromString(value, FontIndex);
+                return;
+            case "LineHeight":
+                LineHeight = Math.Max(1, Conversions.IntFromString(value, LineHeight));
                 return;
         }
 

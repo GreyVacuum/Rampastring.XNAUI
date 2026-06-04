@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Rampastring.Tools;
 using Rampastring.XNAUI.FontManagement;
 using System;
 using System.Collections.Generic;
@@ -173,6 +174,30 @@ public class XNAContextMenu : XNAControl
 
     public int TextHorizontalPadding { get; set; } = 1;
     public int TextVerticalPadding { get; set; } = 1;
+
+    protected override void ParseControlINIAttribute(IniFile iniFile, string key, string value)
+    {
+        switch (key)
+        {
+            case "ItemHeight":
+                ItemHeight = Conversions.IntFromString(value, ItemHeight);
+                return;
+            case "FontIndex":
+                FontIndex = Conversions.IntFromString(value, FontIndex);
+                return;
+            case "HintFontIndex":
+                HintFontIndex = Conversions.IntFromString(value, HintFontIndex);
+                return;
+            case "TextHorizontalPadding":
+                TextHorizontalPadding = Conversions.IntFromString(value, TextHorizontalPadding);
+                return;
+            case "TextVerticalPadding":
+                TextVerticalPadding = Conversions.IntFromString(value, TextVerticalPadding);
+                return;
+        }
+
+        base.ParseControlINIAttribute(iniFile, key, value);
+    }
 
     /// <summary>
     /// The index of the context menu item that 
