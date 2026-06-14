@@ -314,7 +314,7 @@ public static class FontManager
         {
             string section = $"Font{i}";
             string fontPath = iniFile.GetStringValue(section, "Path", "");
-            int size = iniFile.GetIntValue(section, "Size", 16);
+            float size = iniFile.GetSingleValue(section, "Size", 16f);
             string fontTypeStr = iniFile.GetStringValue(section, "Type", nameof(FontType.SpriteFont));
             int fallback = iniFile.GetIntValue(section, "Fallback", -1);
 
@@ -441,7 +441,7 @@ public static class FontManager
         }
     }
 
-    private readonly record struct FontConfig(string Path, int Size, FontType FontType, int Fallback);
+    private readonly record struct FontConfig(string Path, float Size, FontType FontType, int Fallback);
 
     /// <summary>
     /// Loads a SpriteFont and adds it to the font list.
