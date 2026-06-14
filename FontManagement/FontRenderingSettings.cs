@@ -11,20 +11,20 @@ public class FontRenderingSettings
     /// Horizontal blur kernel size used by FontStashSharp when rasterizing glyphs.
     /// Maps to <c>FontSystemSettings.KernelWidth</c>. Must be non-negative.
     /// </summary>
-    public int KernelWidth { get; set; } = 0;
+    public int KernelWidth { get; set; } = 4;
 
     /// <summary>
     /// Vertical blur kernel size used by FontStashSharp when rasterizing glyphs.
     /// Maps to <c>FontSystemSettings.KernelHeight</c>. Must be non-negative.
     /// </summary>
-    public int KernelHeight { get; set; } = 0;
+    public int KernelHeight { get; set; } = 4;
 
     /// <summary>
     /// Multiplier applied to the rasterization size of each glyph.
     /// Values > 1 produce sharper output when text is drawn at scales above 1.0
     /// at the cost of a larger atlas footprint.
     /// </summary>
-    public float FontResolutionFactor { get; set; } = 1f;
+    public float FontResolutionFactor { get; set; } = 5f;
 
     /// <summary>
     /// Width of each FontStashSharp atlas page, in pixels.
