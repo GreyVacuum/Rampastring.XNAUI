@@ -441,21 +441,7 @@ public static class FontManager
         }
     }
 
-    private readonly struct FontConfig
-    {
-        public string Path { get; }
-        public int Size { get; }
-        public FontType FontType { get; }
-        public int Fallback { get; }
-
-        public FontConfig(string path, int size, FontType fontType, int fallback)
-        {
-            Path = path;
-            Size = size;
-            FontType = fontType;
-            Fallback = fallback;
-        }
-    }
+    private readonly record struct FontConfig(string Path, int Size, FontType FontType, int Fallback);
 
     /// <summary>
     /// Loads a SpriteFont and adds it to the font list.
