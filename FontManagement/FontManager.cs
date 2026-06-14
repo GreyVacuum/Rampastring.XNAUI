@@ -218,6 +218,14 @@ public static class FontManager
     private static void LoadTextShapingSettings(IniFile iniFile)
     {
         textShapingSettings.Enabled = iniFile.GetBooleanValue("TextShaping", "Enabled", false);
+
+        // When shaping is enabled, probe the native HarfBuzz library once and disable shaping if it
+        // cannot be loaded here - a missing native binary, or a path the .NET Framework loader cannot
+        // represent - so the client renders unshaped instead of crashing during font loading (which
+        // would otherwise throw "Unable to load library 'libHarfBuzzSharp'").
+        if (textShapingSettings.Enabled && !IsNativeTextShaperAvailable())
+            textShapingSettings.Enabled = false;
+
         textShapingSettings.EnableBiDi = iniFile.GetBooleanValue("TextShaping", "EnableBiDi", true);
         textShapingSettings.CacheSize = iniFile.GetIntValue("TextShaping", "CacheSize", DefaultShapedTextCacheSize);
 
@@ -225,6 +233,35 @@ public static class FontManager
             textShapingSettings.CacheSize = DefaultShapedTextCacheSize;
 
         Logger.Log($"FontManager: Text shaping settings: Enabled={textShapingSettings.Enabled}, BiDi={textShapingSettings.EnableBiDi}, CacheSize={textShapingSettings.CacheSize}");
+    }
+
+    /// <summary>
+    /// Probes whether the native HarfBuzz library can actually be loaded in the current process.
+    /// The managed HarfBuzzSharp assembly can load successfully while its native counterpart
+    /// (libHarfBuzzSharp) cannot - for example when the native binary was not deployed, or when the
+    /// .NET Framework build runs from a path that cannot be represented in the system ANSI code page.
+    /// Detecting this once, up front, lets the font system fall back to unshaped rendering with a
+    /// clear log entry instead of throwing in the middle of font loading.
+    /// </summary>
+    private static bool IsNativeTextShaperAvailable()
+    {
+        try
+        {
+            using var probe = new HarfBuzzSharp.Buffer();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // The real cause (e.g. "Unable to load library 'libHarfBuzzSharp'") is typically wrapped
+            // in a TypeInitializationException from HarfBuzzApi's static initializer; unwrap it so the
+            // log states the actual reason rather than a generic type-initializer message.
+            Exception rootCause = ex;
+            while (rootCause.InnerException != null)
+                rootCause = rootCause.InnerException;
+
+            Logger.Log($"FontManager: Native HarfBuzz text shaper is unavailable; continuing without text shaping. Reason: {rootCause.Message}");
+            return false;
+        }
     }
 
     private static void LoadFontRenderingSettings(IniFile iniFile)
