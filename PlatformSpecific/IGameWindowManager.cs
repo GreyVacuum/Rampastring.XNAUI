@@ -10,6 +10,7 @@ internal interface IGameWindowManager
 #if WINFORMS
     event EventHandler GameWindowClosing;
     event EventHandler ClientSizeChanged;
+    event EventHandler<FileDropEventArgs> FilesDropped;
 
     void AllowClosing();
 #if NET5_0_OR_GREATER

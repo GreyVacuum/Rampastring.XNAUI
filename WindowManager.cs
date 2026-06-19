@@ -54,6 +54,12 @@ public class WindowManager : DrawableGameComponent
     /// This event is not raised by calling <see cref="InitGraphicsMode(int, int, bool)"/>.
     /// </summary>
     public event EventHandler WindowSizeChangedByUser;
+
+    /// <summary>
+    /// Raised when one or more files are dropped onto the game window.
+    /// Only supported on WinForms-based engine configurations.
+    /// </summary>
+    public event EventHandler<PlatformSpecific.FileDropEventArgs> FilesDropped;
 #endif
 
     /// <summary>
@@ -334,6 +340,7 @@ public class WindowManager : DrawableGameComponent
 #if WINFORMS
         gameWindowManager.GameWindowClosing += GameWindowManager_GameWindowClosing;
         gameWindowManager.ClientSizeChanged += GameWindowManager_ClientSizeChanged;
+        gameWindowManager.FilesDropped += (sender, e) => FilesDropped?.Invoke(this, e);
 #else
         Game.Exiting += GameWindowManager_GameWindowClosing;
 #endif

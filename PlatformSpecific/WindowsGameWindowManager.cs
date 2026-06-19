@@ -28,6 +28,9 @@ internal class WindowsGameWindowManager : IGameWindowManager
         {
             gameForm.FormClosing += GameForm_FormClosing_Event;
             gameForm.ResizeEnd += GameForm_ClientSizeChanged;
+            gameForm.AllowDrop = true;
+            gameForm.DragEnter += GameForm_DragEnter;
+            gameForm.DragDrop += GameForm_DragDrop;
         }
 #endif
     }
@@ -39,6 +42,30 @@ internal class WindowsGameWindowManager : IGameWindowManager
     private bool closingPrevented = false;
 
     public event EventHandler GameWindowClosing;
+
+    /// <summary>
+    /// Raised when one or more files are dropped onto the game window.
+    /// The event argument contains the full paths of the dropped files.
+    /// </summary>
+    public event EventHandler<FileDropEventArgs> FilesDropped;
+
+    private void GameForm_DragEnter(object sender, DragEventArgs e)
+    {
+        e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
+
+    private void GameForm_DragDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+            return;
+
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0)
+            return;
+
+        FilesDropped?.Invoke(this, new FileDropEventArgs(files));
+    }
 #endif
 
     public event EventHandler ClientSizeChanged;
