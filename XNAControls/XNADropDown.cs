@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Rampastring.Tools;
 using Rampastring.XNAUI.Extensions;
@@ -109,6 +109,28 @@ public class XNADropDown : XNAControl
     }
 
     public int FontIndex { get; set; }
+
+    public bool EnableScrollBar { get; set; } = true;
+
+    public int ScrollBarWidth { get; set; } = 12;
+
+    public Color? ScrollBarThumbColor { get; set; } = null;
+
+    public Color? ScrollBarTrackColor { get; set; } = null;
+
+    public Color? ScrollBarBorderColor { get; set; } = null;
+
+    public int ScrollBarThumbPadding { get; set; } = 2;
+
+    public int ScrollStep { get; set; } = 3;
+
+    public int MaxVisibleItems { get; set; } = 5;
+
+    private bool isScrollBarDragging = false;
+
+    private int scrollBarDragStartY = 0;
+
+    private int scrollBarDragStartTopIndex = 0;
 
     private Color? _borderColor;
 
@@ -358,6 +380,30 @@ public class XNADropDown : XNAControl
             case "ShowEllipsisOnOverflow":
                 ShowEllipsisOnOverflow = Conversions.BooleanFromString(value, false);
                 return;
+            case "EnableScrollBar":
+                EnableScrollBar = Conversions.BooleanFromString(value, true);
+                return;
+            case "ScrollBarWidth":
+                ScrollBarWidth = Conversions.IntFromString(value, 12);
+                return;
+            case "ScrollBarThumbColor":
+                ScrollBarThumbColor = AssetLoader.GetRGBAColorFromString(value);
+                return;
+            case "ScrollBarTrackColor":
+                ScrollBarTrackColor = AssetLoader.GetRGBAColorFromString(value);
+                return;
+            case "ScrollBarBorderColor":
+                ScrollBarBorderColor = AssetLoader.GetRGBAColorFromString(value);
+                return;
+            case "ScrollBarThumbPadding":
+                ScrollBarThumbPadding = Conversions.IntFromString(value, 2);
+                return;
+            case "ScrollStep":
+                ScrollStep = Conversions.IntFromString(value, 3);
+                return;
+            case "MaxVisibleItems":
+                MaxVisibleItems = Conversions.IntFromString(value, 5);
+                return;
         }
 
         if (key.StartsWith("Option", StringComparison.InvariantCulture))
@@ -382,6 +428,19 @@ public class XNADropDown : XNAControl
 
         if (DropDownState != DropDownState.CLOSED)
         {
+            if (isScrollBarDragging)
+            {
+                if (Cursor.RightDown)
+                {
+                    UpdateScrollBarDrag();
+                }
+                else
+                {
+                    isScrollBarDragging = false;
+                }
+                return;
+            }
+
             if (!IsActive && Cursor.LeftPressedDown)
             {
                 hoveredIndex = -1;
@@ -389,14 +448,53 @@ public class XNADropDown : XNAControl
                 return;
             }
 
-            // Update hovered index
-
             int itemIndexOnCursor = GetItemIndexOnCursor();
 
             if (itemIndexOnCursor > -1 && Items[itemIndexOnCursor].Selectable)
                 hoveredIndex = itemIndexOnCursor;
             else
                 hoveredIndex = -1;
+        }
+    }
+
+    public override void OnRightClick(InputEventArgs inputEventArgs)
+    {
+        base.OnRightClick(inputEventArgs);
+
+        if (DropDownState != DropDownState.CLOSED && EnableScrollBar && Items.Count > numFittingItems)
+        {
+            Rectangle listRectangle;
+            if (DropDownState == DropDownState.OPENED_DOWN)
+                listRectangle = new Rectangle(0, DropDownTexture.Height, CurrentDisplayWidth, Height - DropDownTexture.Height);
+            else
+                listRectangle = new Rectangle(0, 0, CurrentDisplayWidth, Height - DropDownTexture.Height);
+
+            Rectangle scrollBarRect = GetScrollBarTrackRectangle(listRectangle);
+            Point cursorPos = GetCursorPoint();
+
+            if (scrollBarRect.Contains(cursorPos))
+            {
+                inputEventArgs.Handled = true;
+
+                Rectangle thumbRect = GetScrollBarThumbRectangle(listRectangle);
+
+                if (thumbRect.Contains(cursorPos))
+                {
+                    isScrollBarDragging = true;
+                    scrollBarDragStartY = cursorPos.Y;
+                    scrollBarDragStartTopIndex = TopIndex;
+                }
+                else
+                {
+                    int scrollBarY = scrollBarRect.Y;
+                    int scrollBarHeight = scrollBarRect.Height;
+                    int totalItems = Items.Count;
+                    int visibleItems = Math.Min(numFittingItems, totalItems);
+                    float clickRatio = (float)(cursorPos.Y - scrollBarY) / scrollBarHeight;
+                    int newTopIndex = (int)(clickRatio * (totalItems - visibleItems));
+                    TopIndex = (int)MathHelper.Clamp(newTopIndex, 0, totalItems - visibleItems);
+                }
+            }
         }
     }
 
@@ -410,7 +508,48 @@ public class XNADropDown : XNAControl
         inputEventArgs.Handled = true;
 
         if (DropDownState != DropDownState.CLOSED)
+        {
+            if (EnableScrollBar && Items.Count > numFittingItems)
+            {
+                Rectangle listRectangle;
+                if (DropDownState == DropDownState.OPENED_DOWN)
+                    listRectangle = new Rectangle(0, DropDownTexture.Height, CurrentDisplayWidth, Height - DropDownTexture.Height);
+                else
+                    listRectangle = new Rectangle(0, 0, CurrentDisplayWidth, Height - DropDownTexture.Height);
+
+                Rectangle scrollBarRect = GetScrollBarTrackRectangle(listRectangle);
+                Point cursorPos = GetCursorPoint();
+
+                if (scrollBarRect.Contains(cursorPos))
+                {
+                    Rectangle thumbRect = GetScrollBarThumbRectangle(listRectangle);
+
+                    if (thumbRect.Contains(cursorPos))
+                    {
+                        // Left-click on thumb: jump to that position (no drag)
+                        float scrollBarHeight = scrollBarRect.Height;
+                        int totalItems = Items.Count;
+                        int visibleItems = Math.Min(numFittingItems, totalItems);
+                        int thumbHeight = thumbRect.Height;
+                        float clickRatio = (float)(cursorPos.Y - scrollBarRect.Y - thumbHeight / 2f) / (scrollBarHeight - thumbHeight);
+                        int newTopIndex = (int)(clickRatio * (totalItems - visibleItems));
+                        TopIndex = (int)MathHelper.Clamp(newTopIndex, 0, totalItems - visibleItems);
+                    }
+                    else
+                    {
+                        int scrollBarY = scrollBarRect.Y;
+                        int scrollBarHeight = scrollBarRect.Height;
+                        int totalItems = Items.Count;
+                        int visibleItems = Math.Min(numFittingItems, totalItems);
+                        float clickRatio = (float)(cursorPos.Y - scrollBarY) / scrollBarHeight;
+                        int newTopIndex = (int)(clickRatio * (totalItems - visibleItems));
+                        TopIndex = (int)MathHelper.Clamp(newTopIndex, 0, totalItems - visibleItems);
+                    }
+                    return;
+                }
+            }
             return;
+        }
 
         ClickSoundEffect?.Play();
 
@@ -444,14 +583,22 @@ public class XNADropDown : XNAControl
         {
             DropDownState = DropDownState.OPENED_DOWN;
             numFittingItems = (WindowManager.RenderResolutionY - (GetWindowRectangle().Bottom + 1)) / (ItemHeight * GetTotalScalingRecursive());
+            numFittingItems = Math.Max(1, numFittingItems);
+            if (MaxVisibleItems > 0)
+                numFittingItems = Math.Min(numFittingItems, MaxVisibleItems);
             Height = DropDownTexture.Height + 2 + ItemHeight * Math.Min(numFittingItems, Items.Count);
         }
         else
         {
             DropDownState = DropDownState.OPENED_UP;
-            numFittingItems = Items.Count; // TODO
-            Y -= 1 + ItemHeight * Math.Min(numFittingItems, Items.Count);
-            Height = DropDownTexture.Height + 1 + ItemHeight * Math.Min(numFittingItems, Items.Count);
+            int availableSpace = GetWindowRectangle().Y;
+            numFittingItems = availableSpace / (ItemHeight * GetTotalScalingRecursive());
+            numFittingItems = Math.Max(1, numFittingItems);
+            if (MaxVisibleItems > 0)
+                numFittingItems = Math.Min(numFittingItems, MaxVisibleItems);
+            int itemsToShow = Math.Min(numFittingItems, Items.Count);
+            Y -= 1 + ItemHeight * itemsToShow;
+            Height = DropDownTexture.Height + 1 + ItemHeight * itemsToShow;
         }
 
         SyncWidthToDropDownState();
@@ -463,6 +610,11 @@ public class XNADropDown : XNAControl
         inputEventArgs.Handled = true;
 
         if (DropDownState == DropDownState.CLOSED)
+        {
+            return;
+        }
+
+        if (isScrollBarDragging)
         {
             return;
         }
@@ -497,6 +649,7 @@ public class XNADropDown : XNAControl
 
         Height = DropDownTexture.Height;
         DropDownState = DropDownState.CLOSED;
+        isScrollBarDragging = false;
         SyncWidthToDropDownState();
         Attach();
     }
@@ -506,7 +659,15 @@ public class XNADropDown : XNAControl
         if (!AllowDropDown)
             return;
 
-        if (DropDownState == DropDownState.CLOSED || GetCursorPoint().Y <= DropDownTexture.Height)
+        bool cursorOnButton;
+        if (DropDownState == DropDownState.CLOSED)
+            cursorOnButton = true;
+        else if (DropDownState == DropDownState.OPENED_DOWN)
+            cursorOnButton = GetCursorPoint().Y <= DropDownTexture.Height;
+        else // OPENED_UP
+            cursorOnButton = GetCursorPoint().Y >= Height - DropDownTexture.Height;
+
+        if (cursorOnButton)
         {
             if (Cursor.ScrollWheelValue < 0)
             {
@@ -532,23 +693,20 @@ public class XNADropDown : XNAControl
         }
         else if (AllowScrollingItemList())
         {
-            if (DropDownState == DropDownState.OPENED_DOWN)
+            if (Cursor.ScrollWheelValue < 0)
             {
-                if (Cursor.ScrollWheelValue < 0)
+                if (TopIndex + numFittingItems < Items.Count)
                 {
-                    if (TopIndex + numFittingItems < Items.Count)
-                    {
-                        inputEventArgs.Handled = true;
-                        TopIndex = Math.Min(Items.Count - numFittingItems, TopIndex + 3);
-                    }
+                    inputEventArgs.Handled = true;
+                    TopIndex = Math.Min(Items.Count - numFittingItems, TopIndex + ScrollStep);
                 }
-                else if (Cursor.ScrollWheelValue > 0)
+            }
+            else if (Cursor.ScrollWheelValue > 0)
+            {
+                if (TopIndex > 0)
                 {
-                    if (TopIndex > 0)
-                    {
-                        inputEventArgs.Handled = true;
-                        TopIndex = Math.Max(0, TopIndex - 3);
-                    }
+                    inputEventArgs.Handled = true;
+                    TopIndex = Math.Max(0, TopIndex - ScrollStep);
                 }
             }
         }
@@ -558,9 +716,6 @@ public class XNADropDown : XNAControl
 
     private bool AllowScrollingItemList()
     {
-        if (OpenUp)
-            return false; // we don't support this yet
-
         return numFittingItems < Items.Count;
     }
 
@@ -576,6 +731,12 @@ public class XNADropDown : XNAControl
             p.Y < 0)
         {
             return -2;
+        }
+
+        if (DropDownState != DropDownState.CLOSED && EnableScrollBar && Items.Count > numFittingItems)
+        {
+            if (p.X > CurrentDisplayWidth - ScrollBarWidth)
+                return -1;
         }
 
         int itemIndex;
@@ -750,10 +911,18 @@ public class XNADropDown : XNAControl
 
                 DrawRectangle(listRectangle, BorderColor);
 
+                bool showScrollBar = EnableScrollBar && Items.Count > numFittingItems;
+                int itemAreaWidth = showScrollBar ? CurrentDisplayWidth - ScrollBarWidth - 1 : CurrentDisplayWidth;
+
                 for (int i = 0; i < Math.Min(numFittingItems, Items.Count - TopIndex); i++)
                 {
                     int y = listRectangle.Y + 1 + i * ItemHeight;
-                    DrawItem(TopIndex + i, y);
+                    DrawItem(TopIndex + i, y, itemAreaWidth);
+                }
+
+                if (showScrollBar)
+                {
+                    DrawScrollBar(listRectangle);
                 }
             }
             else
@@ -773,9 +942,18 @@ public class XNADropDown : XNAControl
     /// <param name="y">The Y coordinate of the item's top border.</param>
     protected virtual void DrawItem(int index, int y)
     {
-        XNADropDownItem item = Items[index];
+        DrawItem(index, y, CurrentDisplayWidth);
+    }
 
-        int itemWidth = CurrentDisplayWidth;
+    /// <summary>
+    /// Draws a single drop-down item with a specified width.
+    /// </summary>
+    /// <param name="index">The index of the item to be drawn.</param>
+    /// <param name="y">The Y coordinate of the item's top border.</param>
+    /// <param name="itemWidth">The width of the item area.</param>
+    protected virtual void DrawItem(int index, int y, int itemWidth)
+    {
+        XNADropDownItem item = Items[index];
 
         if (hoveredIndex == index)
         {
@@ -805,5 +983,73 @@ public class XNADropDown : XNAControl
             int textY = y + Renderer.GetTextYPadding(item.Text, FontIndex, ItemHeight);
             DrawStringWithShadow(item.Text, FontIndex, new Vector2(textX, textY), textColor);
         }
+    }
+
+    private void DrawScrollBar(Rectangle listRectangle)
+    {
+        int scrollBarX = listRectangle.Right - ScrollBarWidth;
+        int scrollBarY = listRectangle.Y + 1;
+        int scrollBarHeight = listRectangle.Height - 2;
+        int totalItems = Items.Count;
+        int visibleItems = Math.Min(numFittingItems, totalItems);
+        float scrollRatio = (float)visibleItems / totalItems;
+        int thumbHeight = Math.Max(ItemHeight, (int)(scrollBarHeight * scrollRatio));
+        float scrollProgress = (float)TopIndex / (totalItems - visibleItems);
+        int thumbY = scrollBarY + (int)((scrollBarHeight - thumbHeight) * scrollProgress);
+
+        Color trackColor = ScrollBarTrackColor ?? UISettings.ActiveSettings.DropDownScrollBarTrackColor ?? BackColor;
+        Color borderColor = ScrollBarBorderColor ?? UISettings.ActiveSettings.DropDownScrollBarBorderColor ?? BorderColor;
+        Color thumbColor = isScrollBarDragging ? FocusColor : (ScrollBarThumbColor ?? UISettings.ActiveSettings.DropDownScrollBarThumbColor ?? UISettings.ActiveSettings.AltColor);
+
+        FillRectangle(new Rectangle(scrollBarX, scrollBarY, ScrollBarWidth, scrollBarHeight), trackColor);
+        DrawRectangle(new Rectangle(scrollBarX, scrollBarY, ScrollBarWidth, scrollBarHeight), borderColor);
+
+        FillRectangle(new Rectangle(scrollBarX + ScrollBarThumbPadding, thumbY,
+            ScrollBarWidth - ScrollBarThumbPadding * 2, thumbHeight), thumbColor);
+    }
+
+    private Rectangle GetScrollBarThumbRectangle(Rectangle listRectangle)
+    {
+        int scrollBarX = listRectangle.Right - ScrollBarWidth;
+        int scrollBarY = listRectangle.Y + 1;
+        int scrollBarHeight = listRectangle.Height - 2;
+        int totalItems = Items.Count;
+        int visibleItems = Math.Min(numFittingItems, totalItems);
+        float scrollRatio = (float)visibleItems / totalItems;
+        int thumbHeight = Math.Max(ItemHeight, (int)(scrollBarHeight * scrollRatio));
+        float scrollProgress = (float)TopIndex / (totalItems - visibleItems);
+        int thumbY = scrollBarY + (int)((scrollBarHeight - thumbHeight) * scrollProgress);
+
+        return new Rectangle(scrollBarX, thumbY, ScrollBarWidth, thumbHeight);
+    }
+
+    private Rectangle GetScrollBarTrackRectangle(Rectangle listRectangle)
+    {
+        int scrollBarX = listRectangle.Right - ScrollBarWidth;
+        int scrollBarY = listRectangle.Y + 1;
+        int scrollBarHeight = listRectangle.Height - 2;
+
+        return new Rectangle(scrollBarX, scrollBarY, ScrollBarWidth, scrollBarHeight);
+    }
+
+    private void UpdateScrollBarDrag()
+    {
+        Rectangle listRectangle;
+        if (DropDownState == DropDownState.OPENED_DOWN)
+            listRectangle = new Rectangle(0, DropDownTexture.Height, CurrentDisplayWidth, Height - DropDownTexture.Height);
+        else
+            listRectangle = new Rectangle(0, 0, CurrentDisplayWidth, Height - DropDownTexture.Height);
+
+        int scrollBarY = listRectangle.Y + 1;
+        int scrollBarHeight = listRectangle.Height - 2;
+        int totalItems = Items.Count;
+        int visibleItems = Math.Min(numFittingItems, totalItems);
+        int thumbHeight = Math.Max(ItemHeight, (int)(scrollBarHeight * ((float)visibleItems / totalItems)));
+
+        Point cursorPos = GetCursorPoint();
+        int deltaY = cursorPos.Y - scrollBarDragStartY;
+        float scrollDelta = (float)deltaY / (scrollBarHeight - thumbHeight);
+        int newTopIndex = scrollBarDragStartTopIndex + (int)(scrollDelta * (totalItems - visibleItems));
+        TopIndex = (int)MathHelper.Clamp(newTopIndex, 0, totalItems - visibleItems);
     }
 }
