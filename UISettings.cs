@@ -55,4 +55,8 @@ public class UISettings
     public float CheckBoxAlphaRate = 0.05f;
 
     public float IndicatorAlphaRate = 0.05f;
+
+    public Color? DropDownScrollBarThumbColor { get; set; } = null;
+    public Color? DropDownScrollBarTrackColor { get; set; } = null;
+    public Color? DropDownScrollBarBorderColor { get; set; } = null;
 }
