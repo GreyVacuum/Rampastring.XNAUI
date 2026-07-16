@@ -1,4 +1,4 @@
-﻿#if WINFORMS
+#if WINFORMS
 using System;
 using System.Windows.Forms;
 
@@ -33,4 +33,16 @@ internal interface IGameWindowManager
     bool HasFocus();
     void CenterOnScreen();
     void SetBorderlessMode(bool value);
+
+    /// <summary>
+    /// Toggles between windowed and borderless fullscreen mode at runtime.
+    /// Saves the current window state when entering fullscreen and restores it when leaving.
+    /// </summary>
+    void ToggleFullscreen();
+
+    /// <summary>
+    /// Gets a boolean that determines whether the window is currently in
+    /// runtime-toggled borderless fullscreen mode.
+    /// </summary>
+    bool IsFullscreen { get; }
 }

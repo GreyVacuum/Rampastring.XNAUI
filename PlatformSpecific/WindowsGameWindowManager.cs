@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using System;
 #if WINFORMS
 using Rampastring.Tools;
@@ -123,7 +123,7 @@ internal class WindowsGameWindowManager : IGameWindowManager
     /// <summary>
     /// Enables or disables borderless windowed mode.
     /// </summary>
-    /// <param name="value">A boolean that determines whether borderless 
+    /// <param name="value">A boolean that determines whether borderless
     /// windowed mode should be enabled.</param>
     public void SetBorderlessMode(bool value)
     {
@@ -136,6 +136,72 @@ internal class WindowsGameWindowManager : IGameWindowManager
             gameForm.FormBorderStyle = FormBorderStyle.FixedSingle;
 #endif
     }
+
+    private bool isRuntimeFullscreen = false;
+
+#if WINFORMS
+    private FormBorderStyle savedFormBorderStyle = FormBorderStyle.FixedSingle;
+    private System.Drawing.Rectangle savedBounds = System.Drawing.Rectangle.Empty;
+    private FormWindowState savedWindowState = FormWindowState.Normal;
+    private bool hasSavedWindowState = false;
+#endif
+
+    /// <summary>
+    /// Toggles between the current windowed state and a borderless fullscreen state.
+    /// The previous window bounds and border style are saved when entering fullscreen
+    /// and restored when leaving.
+    /// </summary>
+    public void ToggleFullscreen()
+    {
+#if WINFORMS
+        if (gameForm == null)
+            return;
+
+        if (!isRuntimeFullscreen)
+        {
+            // Save current state before entering fullscreen
+            savedFormBorderStyle = gameForm.FormBorderStyle;
+            savedBounds = gameForm.Bounds;
+            savedWindowState = gameForm.WindowState;
+            hasSavedWindowState = true;
+
+            // Enter borderless fullscreen on the screen that contains the window
+            if (gameForm.WindowState != FormWindowState.Normal)
+                gameForm.WindowState = FormWindowState.Normal;
+
+            gameForm.FormBorderStyle = FormBorderStyle.None;
+#if !XNA
+            game.Window.IsBorderless = true;
+#endif
+            var screen = System.Windows.Forms.Screen.FromHandle(gameForm.Handle);
+            gameForm.Bounds = screen.Bounds;
+            isRuntimeFullscreen = true;
+        }
+        else
+        {
+            // Restore previously saved window state
+            gameForm.FormBorderStyle = savedFormBorderStyle;
+#if !XNA
+            game.Window.IsBorderless = savedFormBorderStyle == FormBorderStyle.None;
+#endif
+            if (savedWindowState != FormWindowState.Minimized)
+                gameForm.WindowState = savedWindowState;
+            if (savedWindowState == FormWindowState.Normal)
+                gameForm.Bounds = savedBounds;
+            isRuntimeFullscreen = false;
+        }
+#else
+        // Non-WinForms fallback: simple borderless toggle
+        game.Window.IsBorderless = !game.Window.IsBorderless;
+        isRuntimeFullscreen = game.Window.IsBorderless;
+#endif
+    }
+
+    /// <summary>
+    /// Gets a boolean that determines whether the window is currently in
+    /// runtime-toggled borderless fullscreen mode.
+    /// </summary>
+    public bool IsFullscreen => isRuntimeFullscreen;
 
 #if WINFORMS
     /// <summary>
