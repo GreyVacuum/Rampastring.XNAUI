@@ -345,6 +345,9 @@ public class WindowManager : DrawableGameComponent
         Game.Exiting += GameWindowManager_GameWindowClosing;
 #endif
 
+        // Register Alt+Enter to toggle borderless fullscreen at runtime.
+        Keyboard.OnKeyDown += Keyboard_OnKeyDown;
+
         if (UISettings.ActiveSettings == null)
             UISettings.ActiveSettings = new UISettings();
 #if XNA
@@ -367,6 +370,19 @@ public class WindowManager : DrawableGameComponent
     {
         SoundPlayer.StopAll();
         GameClosing?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Handles Alt+Enter at runtime to toggle the game window between its
+    /// current windowed state and a borderless fullscreen state.
+    /// </summary>
+    private void Keyboard_OnKeyDown(object sender, Rampastring.XNAUI.Input.KeyPressEventArgs e)
+    {
+        if (e.PressedKey == Microsoft.Xna.Framework.Input.Keys.Enter && Keyboard.IsAltHeldDown())
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+        }
     }
 
 #if WINFORMS
@@ -467,6 +483,16 @@ public class WindowManager : DrawableGameComponent
     public void SetBorderlessMode(bool value)
     {
         gameWindowManager.SetBorderlessMode(value);
+    }
+
+    /// <summary>
+    /// Toggles between the current windowed state and a borderless fullscreen state
+    /// at runtime. The previous window bounds and border style are saved when entering
+    /// fullscreen and restored when leaving.
+    /// </summary>
+    public void ToggleFullscreen()
+    {
+        gameWindowManager.ToggleFullscreen();
     }
 
 #if WINFORMS
@@ -658,9 +684,10 @@ public class WindowManager : DrawableGameComponent
     }
 
     /// <summary>
-    /// Returns whether the game is running in fullscreen mode.
+    /// Returns whether the game is running in fullscreen mode
+    /// (either GraphicsDeviceManager fullscreen or runtime-toggled borderless fullscreen).
     /// </summary>
-    public bool IsFullscreen => graphics.IsFullScreen;
+    public bool IsFullscreen => graphics.IsFullScreen || gameWindowManager.IsFullscreen;
 
     /// <summary>
     /// Updates the WindowManager. Do not call manually; MonoGame will call 
