@@ -7,6 +7,9 @@ using System.Windows.Forms;
 #else
 using Microsoft.Xna.Framework.Graphics;
 #endif
+#if GL
+using System.Runtime.InteropServices;
+#endif
 
 namespace Rampastring.XNAUI.PlatformSpecific;
 
@@ -176,6 +179,9 @@ internal class WindowsGameWindowManager : IGameWindowManager
             var screen = System.Windows.Forms.Screen.FromHandle(gameForm.Handle);
             gameForm.Bounds = screen.Bounds;
             isRuntimeFullscreen = true;
+
+            // Notify listeners that fullscreen state changed
+            FullscreenStateChanged?.Invoke(this, new FullscreenStateChangedEventArgs(true, screen.Bounds.Width, screen.Bounds.Height, false));
         }
         else
         {
@@ -189,6 +195,10 @@ internal class WindowsGameWindowManager : IGameWindowManager
             if (savedWindowState == FormWindowState.Normal)
                 gameForm.Bounds = savedBounds;
             isRuntimeFullscreen = false;
+
+            // Notify listeners that fullscreen state changed, passing whether resizing should be enabled
+            bool allowResizing = savedFormBorderStyle == FormBorderStyle.Sizable;
+            FullscreenStateChanged?.Invoke(this, new FullscreenStateChangedEventArgs(false, gameForm.ClientSize.Width, gameForm.ClientSize.Height, allowResizing));
         }
 #else
         // Non-WinForms fallback: simple borderless toggle
@@ -202,6 +212,58 @@ internal class WindowsGameWindowManager : IGameWindowManager
     /// runtime-toggled borderless fullscreen mode.
     /// </summary>
     public bool IsFullscreen => isRuntimeFullscreen;
+
+    /// <summary>
+    /// Raised when the fullscreen state changes. Provides the new window dimensions.
+    /// </summary>
+    public event EventHandler<FullscreenStateChangedEventArgs> FullscreenStateChanged;
+
+    /// <summary>
+    /// Enables or disables user resizing of the game window.
+    /// </summary>
+    /// <param name="allow">True to allow resizing, false to disallow.</param>
+    public void EnableResizing(bool allow)
+    {
+#if WINFORMS
+        if (gameForm != null)
+            gameForm.FormBorderStyle = allow ? FormBorderStyle.Sizable : FormBorderStyle.FixedSingle;
+#else
+        game.Window.AllowUserResizing = allow;
+#endif
+    }
+
+    /// <summary>
+    /// Sets the minimum window size. The window cannot be resized smaller than this.
+    /// </summary>
+    /// <param name="width">Minimum width in pixels.</param>
+    /// <param name="height">Minimum height in pixels.</param>
+    public void SetMinimumSize(int width, int height)
+    {
+#if WINFORMS
+        if (gameForm != null)
+            gameForm.MinimumSize = new System.Drawing.Size(width, height);
+#elif GL
+        SDL_SetWindowMinimumSize(game.Window.Handle, width, height);
+#endif
+    }
+
+    public int GetWindowWidth()
+    {
+#if WINFORMS
+        if (gameForm != null)
+            return gameForm.Width;
+#endif
+        return game.Window.ClientBounds.Width;
+    }
+
+    public int GetWindowHeight()
+    {
+#if WINFORMS
+        if (gameForm != null)
+            return gameForm.Height;
+#endif
+        return game.Window.ClientBounds.Height;
+    }
 
 #if WINFORMS
     /// <summary>
@@ -346,10 +408,6 @@ internal class WindowsGameWindowManager : IGameWindowManager
         return Form.ActiveForm != null;
     }
 
-    public int GetWindowWidth() => gameForm.Width;
-
-    public int GetWindowHeight() => gameForm.Height;
-
     public void SetFormBorderStyle(FormBorderStyle borderStyle)
     {
 #if !XNA
@@ -365,5 +423,10 @@ internal class WindowsGameWindowManager : IGameWindowManager
     {
         return game.IsActive;
     }
+#endif
+
+#if GL
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    private static extern void SDL_SetWindowMinimumSize(IntPtr window, int min_w, int min_h);
 #endif
 }
