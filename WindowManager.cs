@@ -48,13 +48,13 @@ public class WindowManager : DrawableGameComponent
     /// </summary>
     public event EventHandler RenderResolutionChanged;
 
-#if WINFORMS
     /// <summary>
     /// Raised when the size of the game window has been changed by the user or the operating system.
     /// This event is not raised by calling <see cref="InitGraphicsMode(int, int, bool)"/>.
     /// </summary>
     public event EventHandler WindowSizeChangedByUser;
 
+#if WINFORMS
     /// <summary>
     /// Raised when one or more files are dropped onto the game window.
     /// Only supported on WinForms-based engine configurations.
@@ -337,9 +337,10 @@ public class WindowManager : DrawableGameComponent
         SoundPlayer = new SoundPlayer(Game);
 
         gameWindowManager = new WindowsGameWindowManager(Game);
+        gameWindowManager.ClientSizeChanged += GameWindowManager_ClientSizeChanged;
+        gameWindowManager.FullscreenStateChanged += GameWindowManager_FullscreenStateChanged;
 #if WINFORMS
         gameWindowManager.GameWindowClosing += GameWindowManager_GameWindowClosing;
-        gameWindowManager.ClientSizeChanged += GameWindowManager_ClientSizeChanged;
         gameWindowManager.FilesDropped += (sender, e) => FilesDropped?.Invoke(this, e);
 #else
         Game.Exiting += GameWindowManager_GameWindowClosing;
@@ -356,7 +357,6 @@ public class WindowManager : DrawableGameComponent
 #endif
     }
 
-#if WINFORMS
     private void GameWindowManager_ClientSizeChanged(object sender, EventArgs e)
     {
         WindowWidth = gameWindowManager.GetWindowWidth();
@@ -364,7 +364,6 @@ public class WindowManager : DrawableGameComponent
         RecalculateScaling();
         WindowSizeChangedByUser?.Invoke(this, EventArgs.Empty);
     }
-#endif
 
     private void GameWindowManager_GameWindowClosing(object sender, EventArgs e)
     {
@@ -383,6 +382,23 @@ public class WindowManager : DrawableGameComponent
             ToggleFullscreen();
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// Handles fullscreen state changes by updating the backbuffer resolution
+    /// to match the new window size and recalculating scaling.
+    /// </summary>
+    private void GameWindowManager_FullscreenStateChanged(object sender, PlatformSpecific.FullscreenStateChangedEventArgs e)
+    {
+        graphics.PreferredBackBufferWidth = e.NewWidth;
+        graphics.PreferredBackBufferHeight = e.NewHeight;
+        graphics.ApplyChanges();
+        RecalculateScaling();
+
+        // On MonoGame (DX), ApplyChanges() can recreate the window handle and reset
+        // the border style. Re-enable resizing if needed after ApplyChanges().
+        if (e.AllowResizing)
+            gameWindowManager.EnableResizing(true);
     }
 
 #if WINFORMS
@@ -494,6 +510,22 @@ public class WindowManager : DrawableGameComponent
     {
         gameWindowManager.ToggleFullscreen();
     }
+
+    /// <summary>
+    /// Enables or disables user resizing of the game window.
+    /// </summary>
+    /// <param name="allow">True to allow resizing, false to disallow.</param>
+    public void EnableResizing(bool allow)
+    {
+        gameWindowManager.EnableResizing(allow);
+    }
+
+    /// <summary>
+    /// Sets the minimum window size. The window cannot be resized smaller than this.
+    /// </summary>
+    /// <param name="width">Minimum width in pixels.</param>
+    /// <param name="height">Minimum height in pixels.</param>
+    public void SetMinimumSize(int width, int height) => gameWindowManager.SetMinimumSize(width, height);
 
 #if WINFORMS
     public void MinimizeWindow()
