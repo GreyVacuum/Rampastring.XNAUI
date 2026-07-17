@@ -338,7 +338,9 @@ public class WindowManager : DrawableGameComponent
 
         gameWindowManager = new WindowsGameWindowManager(Game);
         gameWindowManager.ClientSizeChanged += GameWindowManager_ClientSizeChanged;
+#if !XNA
         gameWindowManager.FullscreenStateChanged += GameWindowManager_FullscreenStateChanged;
+#endif
 #if WINFORMS
         gameWindowManager.GameWindowClosing += GameWindowManager_GameWindowClosing;
         gameWindowManager.FilesDropped += (sender, e) => FilesDropped?.Invoke(this, e);
@@ -347,7 +349,11 @@ public class WindowManager : DrawableGameComponent
 #endif
 
         // Register Alt+Enter to toggle borderless fullscreen at runtime.
+        // XNA has issues with runtime fullscreen toggle (crashes and incorrect rendering),
+        // so this feature is only enabled for non-XNA builds (MonoGame/DX/GL).
+#if !XNA
         Keyboard.OnKeyDown += Keyboard_OnKeyDown;
+#endif
 
         if (UISettings.ActiveSettings == null)
             UISettings.ActiveSettings = new UISettings();
@@ -371,6 +377,7 @@ public class WindowManager : DrawableGameComponent
         GameClosing?.Invoke(this, EventArgs.Empty);
     }
 
+#if !XNA
     /// <summary>
     /// Handles Alt+Enter at runtime to toggle the game window between its
     /// current windowed state and a borderless fullscreen state.
@@ -383,7 +390,9 @@ public class WindowManager : DrawableGameComponent
             e.Handled = true;
         }
     }
+#endif
 
+#if !XNA
     /// <summary>
     /// Handles fullscreen state changes by updating the backbuffer resolution
     /// to match the new window size and recalculating scaling.
@@ -400,6 +409,7 @@ public class WindowManager : DrawableGameComponent
         if (e.AllowResizing)
             gameWindowManager.EnableResizing(true);
     }
+#endif
 
 #if WINFORMS
     /// <summary>
@@ -501,6 +511,7 @@ public class WindowManager : DrawableGameComponent
         gameWindowManager.SetBorderlessMode(value);
     }
 
+#if !XNA
     /// <summary>
     /// Toggles between the current windowed state and a borderless fullscreen state
     /// at runtime. The previous window bounds and border style are saved when entering
@@ -510,6 +521,7 @@ public class WindowManager : DrawableGameComponent
     {
         gameWindowManager.ToggleFullscreen();
     }
+#endif
 
     /// <summary>
     /// Enables or disables user resizing of the game window.
