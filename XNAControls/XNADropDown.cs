@@ -343,6 +343,15 @@ public class XNADropDown : XNAControl
         ClientRectangleUpdated += (s, e) => InvalidateDisplayTextCache();
     }
 
+    /// <summary>
+    /// Localizes a drop-down item text parsed from an INI OptionN entry.
+    /// Override to provide translation support.
+    /// </summary>
+    /// <param name="text">The raw text value from the INI.</param>
+    /// <param name="key">The full INI key (e.g. "OptionN").</param>
+    /// <returns>The localized text, or the original text if no localization is available.</returns>
+    protected virtual string LocalizeDropDownItemText(string text, string key) => text;
+
     protected override void ParseControlINIAttribute(IniFile iniFile, string key, string value)
     {
         switch (key)
@@ -408,7 +417,7 @@ public class XNADropDown : XNAControl
 
         if (key.StartsWith("Option", StringComparison.InvariantCulture))
         {
-            AddItem(value);
+            AddItem(LocalizeDropDownItemText(value, key));
             return;
         }
 

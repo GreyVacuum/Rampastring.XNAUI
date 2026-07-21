@@ -181,6 +181,14 @@ public class XNATabControl : XNAControl
         tab.TextYPosition = (tab.DefaultTexture.Height - (int)textSize.Y) / 2;
     }
 
+    /// <summary>
+    /// Localizes tab text parsed from INI. Override to provide translation support.
+    /// </summary>
+    /// <param name="text">The raw text value from the INI.</param>
+    /// <param name="key">The full INI key (e.g. "TabText" or "TabN.Text").</param>
+    /// <returns>The localized text, or the original text if no localization is available.</returns>
+    protected virtual string LocalizeTabText(string text, string key) => text;
+
     protected override void ParseControlINIAttribute(IniFile iniFile, string key, string value)
     {
         switch (key)
@@ -358,11 +366,12 @@ public class XNATabControl : XNAControl
         if (key.Equals("TabText", StringComparison.InvariantCultureIgnoreCase))
         {
             _defaultTabText = value;
+            string localizedDefault = LocalizeTabText(value, key);
             foreach (var t in Tabs)
             {
                 if (string.IsNullOrEmpty(t.Text))
                 {
-                    t.Text = _defaultTabText;
+                    t.Text = localizedDefault;
                     RecalculateTabTextPosition(t);
                 }
             }
@@ -428,7 +437,7 @@ public class XNATabControl : XNAControl
                             break;
                         case "Text":
                         case "TabText":
-                            tab.Text = value;
+                            tab.Text = LocalizeTabText(value, key);
                             RecalculateTabTextPosition(tab);
                             UpdateLayout();
                             break;
