@@ -682,7 +682,15 @@ public class XNAListBox : XNAPanel
             return;
 
         if (e.PressedKey == Keys.C && Keyboard.IsCtrlHeldDown())
-            ClipboardService.SetText(SelectedItem.Text);
+        {
+            try
+            {
+                ClipboardService.SetText(SelectedItem.Text);
+            }
+            catch (Exception)
+            {
+            }
+        }
     }
 #endif
 

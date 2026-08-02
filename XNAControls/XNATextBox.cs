@@ -737,7 +737,15 @@ public class XNATextBox : XNAControl
                 if (!IsValidSelection())
                     break;
 
-                ClipboardService.SetText(text.Substring(SelectionStartPosition, SelectionLength));
+                try
+                {
+                    ClipboardService.SetText(text.Substring(SelectionStartPosition, SelectionLength));
+                }
+                catch (Exception)
+                {
+                    return true;
+                }
+
                 int newInputPosition = SelectionStartPosition;
                 Text = text.Substring(0, SelectionStartPosition) + text.Substring(SelectionEndPosition);
                 InputPosition = newInputPosition;
@@ -875,7 +883,13 @@ public class XNATextBox : XNAControl
                 if (!IsValidSelection())
                     break;
 
-                ClipboardService.SetText(text.Substring(SelectionStartPosition, SelectionLength));
+                try
+                {
+                    ClipboardService.SetText(text.Substring(SelectionStartPosition, SelectionLength));
+                }
+                catch (Exception)
+                {
+                }
 
                 return true;
             case Keys.A:
