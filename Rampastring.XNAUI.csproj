@@ -70,9 +70,6 @@
     <DotGitFileExists>$([System.IO.File]::Exists('$(MSBuildThisFileDirectory).git'))</DotGitFileExists>
     <ParentDotGitmodulesFileExists>$([System.IO.File]::Exists('$(MSBuildThisFileDirectory)../.gitmodules'))</ParentDotGitmodulesFileExists>
     <IsSubmodule Condition="'$(DotGitFileExists)' == 'true' And '$(ParentDotGitmodulesFileExists)' == 'true'">true</IsSubmodule>
-
-    <!-- There is a race condition in GitVersion. Disable writing version info should help a bit -->
-    <WriteVersionInfoToBuildLog Condition="'$(IsSubmodule)' == 'true'">false</WriteVersionInfoToBuildLog>
   </PropertyGroup>
   
   <ItemGroup>
@@ -99,8 +96,7 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
     <PackageReference Include="TextCopy" Version="6.2.1" />
-    <PackageReference Include="GitVersion.MsBuild" Version="5.12.0" Condition="'$(IsSubmodule)' == 'true'" PrivateAssets="All" />
-  </ItemGroup>
+    </ItemGroup>
   
   <!--Switching between Configurations within VS IDE requires reloading the project file-->
   <ItemGroup Condition="$(DefineConstants.Contains('DX'))">
