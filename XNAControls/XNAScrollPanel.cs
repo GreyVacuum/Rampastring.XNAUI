@@ -559,6 +559,22 @@ public class XNAScrollPanel : XNAPanel
         HorizontalScrollBar.Refresh();
         VerticalScrollBar.Refresh();
     }
+
+    /// <summary>
+    /// Adds a child control to the scrollable content panel.
+    /// </summary>
+    public void AddContentChild(XNAControl child)
+    {
+        ContentPanel.AddChild(child);
+    }
+
+    /// <summary>
+    /// Forces recalculation of scrollbar sizes and positions.
+    /// </summary>
+    public void RefreshScrollbars()
+    {
+        RecalculateScrollbars();
+    }
     
     #endregion
 
