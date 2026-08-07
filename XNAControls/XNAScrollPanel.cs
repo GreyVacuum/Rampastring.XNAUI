@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Rampastring.Tools;
@@ -613,6 +614,21 @@ public class XNAScrollPanel : XNAPanel
     public void AddContentChild(XNAControl child)
     {
         ContentPanel.AddChild(child);
+    }
+
+    /// <summary>
+    /// Returns all child controls that should be processed recursively for INI attributes.
+    /// This includes controls in the ContentPanel for scroll panels.
+    /// </summary>
+    public IEnumerable<XNAControl> GetChildrenForINIProcessing()
+    {
+        // Return children directly on this panel
+        foreach (var child in Children)
+            yield return child;
+
+        // Also return children in the ContentPanel
+        foreach (var child in ContentPanel.Children)
+            yield return child;
     }
 
     /// <summary>
