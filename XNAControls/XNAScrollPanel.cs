@@ -1,10 +1,11 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Globalization;
 using System.Linq;
 using Rampastring.Tools;
 using Rampastring.XNAUI.Extensions;
+using Rampastring.XNAUI.Input;
 using static Rampastring.XNAUI.Extensions.MathExtensions;
 using static Rampastring.XNAUI.Extensions.PointExtensions;
 using static Rampastring.XNAUI.Extensions.RectangleExtensions;
@@ -40,6 +41,24 @@ public class XNAScrollPanel : XNAPanel
     /// Whether to allow scrolling with arrow keys.
     /// </summary>
     public bool AllowKeyboardInput { get; set; } = true;
+
+    private bool _canHandleScrollWheel = true;
+
+    /// <summary>
+    /// Gets or sets whether the scroll panel handles mouse wheel events.
+    /// Set to false when a child control (like a dropdown) needs to receive wheel events.
+    /// </summary>
+    public bool CanHandleScrollWheel
+    {
+        get => _canHandleScrollWheel;
+        set
+        {
+            if (_canHandleScrollWheel == value)
+                return;
+
+            _canHandleScrollWheel = value;
+        }
+    }
 
     private (bool X, bool Y) _allowScroll = (true, true);
     
@@ -367,12 +386,40 @@ public class XNAScrollPanel : XNAPanel
     {
         base.OnPreviewMouseScrolled(inputEventArgs);
 
+        if (!CanHandleScrollWheel)
+            return;
+
+        if (CursorOverlapsOpenDropdown())
+            return;
+
         inputEventArgs.Handled = true;
 
         if (!CanScroll.Y || Keyboard.IsShiftHeldDown())
             CurrentViewPosition = CurrentViewPosition with { X = CurrentViewPosition.X - Cursor.ScrollWheelValue * ScrollStep };
         else
             CurrentViewPosition = CurrentViewPosition with { Y = CurrentViewPosition.Y - Cursor.ScrollWheelValue * ScrollStep };
+    }
+
+    private bool CursorOverlapsOpenDropdown()
+    {
+        return CursorOverlapsOpenDropdown(ContentPanel, Cursor);
+    }
+
+    private static bool CursorOverlapsOpenDropdown(XNAControl control, Cursor cursor)
+    {
+        foreach (var child in control.Children)
+        {
+            if (child is XNADropDown dd && dd.DropDownState != DropDownState.CLOSED)
+            {
+                if (dd.GetWindowRectangle().Contains(cursor.Location))
+                    return true;
+            }
+
+            if (CursorOverlapsOpenDropdown(child, cursor))
+                return true;
+        }
+
+        return false;
     }
 
     public override void OnPreviewMouseScrolledHorizontally(InputEventArgs inputEventArgs)
