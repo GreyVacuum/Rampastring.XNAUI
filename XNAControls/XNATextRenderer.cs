@@ -1,7 +1,8 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Rampastring.XNAUI.Extensions;
 
 namespace Rampastring.XNAUI.XNAControls;
 
@@ -247,6 +248,7 @@ public class XNATextRenderer : XNAControl
             {
                 string remainingText = textPart.Text;
                 var currentOutputPart = new XNATextPart("", textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
+                int maxLineWidth = Width - (Padding * 2);
 
                 while (true)
                 {
@@ -260,24 +262,72 @@ public class XNATextRenderer : XNAControl
                             continue;
                         }
 
-                        string wordToProcess = word;
-
-                        string wordWithSpace = wordToProcess + " ";
-                        int wordWidth = (int)Renderer.GetTextDimensions(wordToProcess, textPart.FontIndex).X;
+                        string wordWithSpace = word + " ";
+                        int wordWidth = (int)Renderer.GetTextDimensions(word, textPart.FontIndex).X;
                         int wordWidthWithSpace = (int)Renderer.GetTextDimensions(wordWithSpace, textPart.FontIndex).X;
+
                         if (wordWidth < remainingWidth)
                         {
                             remainingWidth -= wordWidthWithSpace;
                             currentOutputPart.Text += wordWithSpace;
                         }
-                        else
+                        else if (wordWidth <= maxLineWidth)
                         {
                             line.Parts.Add(currentOutputPart);
-
-                            remainingWidth = Width - (Padding * 2) - wordWidthWithSpace;
+                            remainingWidth = maxLineWidth - wordWidthWithSpace;
                             currentOutputPart = new XNATextPart(wordWithSpace, textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
                             line = new XNATextLine(new List<XNATextPart>());
                             renderedTextLines.Add(line);
+                        }
+                        else
+                        {
+                            if (currentOutputPart.Text.Length > 0)
+                            {
+                                line.Parts.Add(currentOutputPart);
+                                line = new XNATextLine(new List<XNATextPart>());
+                                renderedTextLines.Add(line);
+                                currentOutputPart = new XNATextPart("", textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
+                            }
+
+                            int start = 0;
+                            while (start < word.Length)
+                            {
+                                int remaining = word.Length - start;
+                                int low = 0, high = remaining;
+                                while (low < high)
+                                {
+                                    int mid = (low + high + 1) / 2;
+                                    string candidate = word.SubstringSurrogateAware(start, mid);
+                                    if (Renderer.GetTextDimensions(candidate, textPart.FontIndex).X <= maxLineWidth)
+                                        low = mid;
+                                    else
+                                        high = mid - 1;
+                                }
+
+                                if (low >= remaining)
+                                    break;
+
+                                string chunk = word.SubstringSurrogateAware(start, low);
+                                if (chunk.Length == 0)
+                                    break;
+
+                                var chunkPart = new XNATextPart(chunk, textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
+                                line.Parts.Add(chunkPart);
+                                line = new XNATextLine(new List<XNATextPart>());
+                                renderedTextLines.Add(line);
+                                start += chunk.Length;
+                            }
+
+                            if (start < word.Length)
+                            {
+                                string remainingWord = word.SubstringSurrogateAware(start, word.Length - start);
+                                currentOutputPart.Text = remainingWord + " ";
+                                remainingWidth = maxLineWidth - (int)Renderer.GetTextDimensions(remainingWord + " ", textPart.FontIndex).X;
+                            }
+                            else
+                            {
+                                remainingWidth = maxLineWidth;
+                            }
                         }
                     }
 

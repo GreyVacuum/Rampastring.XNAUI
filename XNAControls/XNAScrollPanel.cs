@@ -559,6 +559,49 @@ public class XNAScrollPanel : XNAPanel
         HorizontalScrollBar.Refresh();
         VerticalScrollBar.Refresh();
     }
+
+    /// <summary>
+    /// Adds a child control to the scrollable content panel.
+    /// </summary>
+    public void AddContentChild(XNAControl child)
+    {
+        ContentPanel.AddChild(child);
+    }
+
+    /// <summary>
+    /// Returns a copy of the content panel's children and removes them
+    /// from the content panel.
+    /// </summary>
+    public List<XNAControl> ExtractContentChildren()
+    {
+        var children = new List<XNAControl>(ContentPanel.Children);
+        foreach (var child in children)
+            ContentPanel.RemoveChild(child);
+        return children;
+    }
+
+    /// <summary>
+    /// Returns all child controls that should be processed recursively for INI attributes.
+    /// This includes controls in the ContentPanel for scroll panels.
+    /// </summary>
+    public IEnumerable<XNAControl> GetChildrenForINIProcessing()
+    {
+        // Return children directly on this panel
+        foreach (var child in Children)
+            yield return child;
+
+        // Also return children in the ContentPanel
+        foreach (var child in ContentPanel.Children)
+            yield return child;
+    }
+
+    /// <summary>
+    /// Forces recalculation of scrollbar sizes and positions.
+    /// </summary>
+    public void RefreshScrollbars()
+    {
+        RecalculateScrollbars();
+    }
     
     #endregion
 
