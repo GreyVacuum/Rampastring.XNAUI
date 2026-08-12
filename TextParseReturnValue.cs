@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Rampastring.XNAUI.Extensions;
 using Rampastring.XNAUI.FontManagement;
@@ -25,14 +25,73 @@ public class TextParseReturnValue
 
         foreach (string word in wordArray)
         {
-            if (font.MeasureString(line + word).X > width)
+            string wordWithSpace = word + " ";
+
+            if (font.MeasureString(line + wordWithSpace).X > width)
             {
+                if (font.MeasureString(word).X > width)
+                {
+                    if (line.Length > 0)
+                    {
+                        processedText = processedText + line + Environment.NewLine;
+                        lineCount++;
+                        line = string.Empty;
+                    }
+
+                    int start = 0;
+                    while (start < word.Length)
+                    {
+                        int remaining = word.Length - start;
+                        int low = 0, high = remaining;
+                        while (low < high)
+                        {
+                            int mid = (low + high + 1) / 2;
+                            if (font.MeasureString(word.SubstringSurrogateAware(start, mid)).X <= width)
+                                low = mid;
+                            else
+                                high = mid - 1;
+                        }
+
+                        if (low >= remaining)
+                            break;
+
+                        string chunk = word.SubstringSurrogateAware(start, low);
+                        if (chunk.Length == 0)
+                            break;
+
+                        if (line.Length > 0)
+                        {
+                            processedText = processedText + line + Environment.NewLine;
+                            lineCount++;
+                        }
+
+                        line = chunk + " ";
+                        start += chunk.Length;
+                    }
+
+                    if (start < word.Length)
+                    {
+                        string remainingWord = word.SubstringSurrogateAware(start, word.Length - start);
+                        if (line.Length > 0)
+                        {
+                            processedText = processedText + line + Environment.NewLine;
+                            lineCount++;
+                        }
+                        line = remainingWord + " ";
+                    }
+                    else if (line.Length > 0)
+                    {
+                        line = line.TrimEnd() + " ";
+                    }
+                    continue;
+                }
+
                 processedText = processedText + line + Environment.NewLine;
                 lineCount++;
                 line = string.Empty;
             }
 
-            line = line + word + " ";
+            line = line + wordWithSpace;
         }
 
         processedText = processedText + line;

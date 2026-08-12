@@ -617,8 +617,8 @@ public class XNAScrollPanel : XNAPanel
     }
 
     /// <summary>
-    /// Extracts all child controls from the ContentPanel and returns them.
-    /// Used when removing scroll functionality to re-parent controls.
+    /// Returns a copy of the content panel's children and removes them
+    /// from the content panel.
     /// </summary>
     public List<XNAControl> ExtractContentChildren()
     {
