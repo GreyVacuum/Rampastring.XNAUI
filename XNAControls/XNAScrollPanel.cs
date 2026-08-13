@@ -648,6 +648,7 @@ public class XNAScrollPanel : XNAPanel
     /// </summary>
     public void RefreshScrollbars()
     {
+        RecalculateContentSize();
         RecalculateScrollbars();
     }
     

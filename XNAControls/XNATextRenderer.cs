@@ -338,7 +338,7 @@ public class XNATextRenderer : XNAControl
         }
 
         ClientRectangleUpdated -= XNATextRenderer_ClientRectangleUpdated;
-        Height = renderedTextLines.Sum(l => l.Height);
+        Height = renderedTextLines.Sum(l => l.Height) + (Padding * 2);
         if (renderedTextLines.Count > 1)
             Height += (renderedTextLines.Count - 1) * SpaceBetweenLines;
 
@@ -352,11 +352,11 @@ public class XNATextRenderer : XNAControl
 
     public override void Draw(GameTime gameTime)
     {
-        int y = 0;
+        int y = Padding;
 
         foreach (XNATextLine line in renderedTextLines)
         {
-            int x = 0;
+            int x = Padding;
 
             foreach (XNATextPart part in line.Parts)
             {
