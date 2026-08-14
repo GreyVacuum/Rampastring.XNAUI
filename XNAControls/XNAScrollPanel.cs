@@ -147,16 +147,84 @@ public class XNAScrollPanel : XNAPanel
     /// <summary>
     /// The bottom-most Y coordinate of the scrollable content relative to the content panel.
     /// </summary>
-    public int ContentBottom => ContentPanel.Children.Count > 0
-        ? ContentPanel.Children.Max(c => c.Bottom)
-        : 0;
+    /// <summary>
+    /// The bottom-most Y coordinate of the scrollable content relative to the content panel.
+    /// Considers all descendant controls (not just direct children), with each control's
+    /// position converted into the content panel's coordinate space.
+    /// </summary>
+    public int ContentBottom
+    {
+        get
+        {
+            int maxBottom = 0;
+            bool found = false;
+
+            foreach (XNAControl control in GetAllDescendants(ContentPanel))
+            {
+                found = true;
+                maxBottom = Math.Max(maxBottom, GetRelativeLocation(control).Y + control.Height);
+            }
+
+            return found ? maxBottom : 0;
+        }
+    }
 
     /// <summary>
     /// The right-most X coordinate of the scrollable content relative to the content panel.
+    /// Considers all descendant controls (not just direct children), with each control's
+    /// position converted into the content panel's coordinate space.
     /// </summary>
-    public int ContentRight => ContentPanel.Children.Count > 0
-        ? ContentPanel.Children.Max(c => c.Right)
-        : 0;
+    public int ContentRight
+    {
+        get
+        {
+            int maxRight = 0;
+            bool found = false;
+
+            foreach (XNAControl control in GetAllDescendants(ContentPanel))
+            {
+                found = true;
+                maxRight = Math.Max(maxRight, GetRelativeLocation(control).X + control.Width);
+            }
+
+            return found ? maxRight : 0;
+        }
+    }
+
+    /// <summary>
+    /// Returns the location of the given control relative to <see cref="ContentPanel"/>,
+    /// accumulating the offsets of every intermediate parent between the control and the
+    /// content panel.
+    /// </summary>
+    private Point GetRelativeLocation(XNAControl control)
+    {
+        int x = 0;
+        int y = 0;
+        XNAControl current = control;
+
+        while (current != null && current != ContentPanel)
+        {
+            x += current.X;
+            y += current.Y;
+            current = current.Parent;
+        }
+
+        return new Point(x, y);
+    }
+
+    /// <summary>
+    /// Recursively enumerates all descendant controls of the given control.
+    /// </summary>
+    private IEnumerable<XNAControl> GetAllDescendants(XNAControl control)
+    {
+        foreach (XNAControl child in control.Children)
+        {
+            yield return child;
+
+            foreach (XNAControl descendant in GetAllDescendants(child))
+                yield return descendant;
+        }
+    }
     
     /// <summary>
     /// The physical offset of the <see cref="ContentPanel"/>.
