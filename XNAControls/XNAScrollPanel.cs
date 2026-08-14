@@ -143,6 +143,20 @@ public class XNAScrollPanel : XNAPanel
             RecalculateScrollbars();
         }
     }
+
+    /// <summary>
+    /// The bottom-most Y coordinate of the scrollable content relative to the content panel.
+    /// </summary>
+    public int ContentBottom => ContentPanel.Children.Count > 0
+        ? ContentPanel.Children.Max(c => c.Bottom)
+        : 0;
+
+    /// <summary>
+    /// The right-most X coordinate of the scrollable content relative to the content panel.
+    /// </summary>
+    public int ContentRight => ContentPanel.Children.Count > 0
+        ? ContentPanel.Children.Max(c => c.Right)
+        : 0;
     
     /// <summary>
     /// The physical offset of the <see cref="ContentPanel"/>.
