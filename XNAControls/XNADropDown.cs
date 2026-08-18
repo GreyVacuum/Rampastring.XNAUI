@@ -128,6 +128,8 @@ public class XNADropDown : XNAControl
 
     private bool isScrollBarDragging = false;
 
+    private bool scrollBarDragIsRightButton = false;
+
     private int scrollBarDragStartY = 0;
 
     private int scrollBarDragStartTopIndex = 0;
@@ -439,7 +441,8 @@ public class XNADropDown : XNAControl
         {
             if (isScrollBarDragging)
             {
-                if (Cursor.RightDown)
+                bool buttonStillDown = scrollBarDragIsRightButton ? Cursor.RightDown : Cursor.LeftDown;
+                if (buttonStillDown)
                 {
                     UpdateScrollBarDrag();
                 }
@@ -466,9 +469,9 @@ public class XNADropDown : XNAControl
         }
     }
 
-    public override void OnRightClick(InputEventArgs inputEventArgs)
+    public override void OnMouseRightDown(InputEventArgs inputEventArgs)
     {
-        base.OnRightClick(inputEventArgs);
+        base.OnMouseRightDown(inputEventArgs);
 
         if (DropDownState != DropDownState.CLOSED && EnableScrollBar && Items.Count > numFittingItems)
         {
@@ -490,6 +493,7 @@ public class XNADropDown : XNAControl
                 if (thumbRect.Contains(cursorPos))
                 {
                     isScrollBarDragging = true;
+                    scrollBarDragIsRightButton = true;
                     scrollBarDragStartY = cursorPos.Y;
                     scrollBarDragStartTopIndex = TopIndex;
                 }
@@ -535,14 +539,11 @@ public class XNADropDown : XNAControl
 
                     if (thumbRect.Contains(cursorPos))
                     {
-                        // Left-click on thumb: jump to that position (no drag)
-                        float scrollBarHeight = scrollBarRect.Height;
-                        int totalItems = Items.Count;
-                        int visibleItems = Math.Min(numFittingItems, totalItems);
-                        int thumbHeight = thumbRect.Height;
-                        float clickRatio = (float)(cursorPos.Y - scrollBarRect.Y - thumbHeight / 2f) / (scrollBarHeight - thumbHeight);
-                        int newTopIndex = (int)(clickRatio * (totalItems - visibleItems));
-                        TopIndex = (int)MathHelper.Clamp(newTopIndex, 0, totalItems - visibleItems);
+                        // Left-click on thumb: start dragging
+                        isScrollBarDragging = true;
+                        scrollBarDragIsRightButton = false;
+                        scrollBarDragStartY = cursorPos.Y;
+                        scrollBarDragStartTopIndex = TopIndex;
                     }
                     else
                     {
