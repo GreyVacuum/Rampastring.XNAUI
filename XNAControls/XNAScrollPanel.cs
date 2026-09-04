@@ -306,14 +306,33 @@ public class XNAScrollPanel : XNAPanel
         NameChanged += XNAScrollPanel_NameChanged;
         
         ClientRectangleUpdated += XNAScrollPanel_ClientRectangleUpdated;
+
+        // Subscribe to ContentPanel child events here (constructor) instead of in
+        // Initialize() so that children attached to ContentPanel *before* this panel
+        // gets initialized still drive RecalculateContentSize(). INItializableWindow
+        // ($CC controls in lobby/window INI files, incl. ScrollPanelMods upgrades)
+        // mounts child controls onto ContentPanel before calling Initialize(), so a
+        // subscription done only in Initialize() would miss those attachments and
+        // leave ContentSize at (0,0), making the panel unable to show scrollbars or
+        // react to the mouse wheel.
+        ContentPanel.ChildAdded += ContentPanel_ChildAdded;
+        ContentPanel.ChildRemoved += ContentPanel_ChildRemoved;
+
+        // Mount ContentPanel right away (without initializing it) so the control tree
+        // is complete from the moment this panel exists. INItializableWindow ($CC in
+        // lobby/window INI files, incl. ScrollPanelMods upgrades) attaches child
+        // controls to ContentPanel before Initialize() runs; those children must be
+        // reachable through the live tree so that INI layout expressions such as
+        // "$Y=getBottom(chkBases) + SPACING" (which Parser resolves by walking the
+        // tree from the host window) can find ContentPanel and its contents already
+        // during the incremental build. ComposeControls() is idempotent and skips the
+        // content panel when it is already mounted.
+        AddChildWithoutInitialize(ContentPanel);
     }
 
     public override void Initialize()
     {
         base.Initialize();
-        
-        ContentPanel.ChildAdded += ContentPanel_ChildAdded;
-        ContentPanel.ChildRemoved += ContentPanel_ChildRemoved;
         
         HorizontalScrollBar.Scrolled += HorizontalScrollBar_Scrolled;
         HorizontalScrollBar.MouseScrolledHorizontally += HorizontalScrollBar_MouseScrolledHorizontally;
@@ -329,11 +348,24 @@ public class XNAScrollPanel : XNAPanel
         CornerPanel.PanelBackgroundDrawMode = PanelBackgroundImageDrawMode.STRETCHED;
         
         ComposeControls();
+
+        // Children may have been attached to ContentPanel before this control was
+        // initialized (see the constructor subscription note above). Recalculate
+        // once now so ContentSize and the scrollbars reflect any pre-attached
+        // content, guaranteeing the panel becomes scrollable when it overflows.
+        RecalculateContentSize();
     }
 
     protected virtual void ComposeControls()
     {
-        AddChild(ContentPanel);
+        // ContentPanel is mounted in the constructor already (see there) so that the
+        // control tree - and with it INI-expression lookups from a host window - sees
+        // content children before Initialize() runs. When it was pre-mounted it has
+        // not been initialized yet, so initialize it here; otherwise add it normally.
+        if (!Children.Contains(ContentPanel))
+            AddChild(ContentPanel);
+        else
+            ContentPanel.Initialize(); // pre-mounted in the ctor without initializing
         AddChild(HorizontalScrollBar);
         AddChild(VerticalScrollBar);
         AddChild(CornerPanel);
