@@ -27,15 +27,16 @@ public class TextParseReturnValue
         {
             string wordWithSpace = word + " ";
 
-            if (font.MeasureString(line + wordWithSpace).X > width)
+            if (TextFormatting.Measure(font, line + wordWithSpace).X > width)
             {
-                if (font.MeasureString(word).X > width)
+                if (TextFormatting.Measure(font, word).X > width)
                 {
-                    if (line.Length > 0)
+                    if (TextFormatting.HasVisibleText(line))
                     {
+                        string carry = TextFormatting.GetActiveFormattingPrefix(line);
                         processedText = processedText + line + Environment.NewLine;
                         lineCount++;
-                        line = string.Empty;
+                        line = carry;
                     }
 
                     int start = 0;
@@ -46,7 +47,7 @@ public class TextParseReturnValue
                         while (low < high)
                         {
                             int mid = (low + high + 1) / 2;
-                            if (font.MeasureString(word.SubstringSurrogateAware(start, mid)).X <= width)
+                            if (TextFormatting.Measure(font, word.SubstringSurrogateAware(start, mid)).X <= width)
                                 low = mid;
                             else
                                 high = mid - 1;
@@ -55,40 +56,49 @@ public class TextParseReturnValue
                         if (low >= remaining)
                             break;
 
-                        string chunk = word.SubstringSurrogateAware(start, low);
+                        int safeLength = TextFormatting.GetSafeSplitLength(word, start, low);
+                        if (safeLength <= 0)
+                            break;
+
+                        string chunk = word.SubstringSurrogateAware(start, safeLength);
                         if (chunk.Length == 0)
                             break;
 
-                        if (line.Length > 0)
+                        if (TextFormatting.HasVisibleText(line))
                         {
+                            string carry = TextFormatting.GetActiveFormattingPrefix(line);
                             processedText = processedText + line + Environment.NewLine;
                             lineCount++;
+                            line = carry;
                         }
 
-                        line = chunk + " ";
-                        start += chunk.Length;
+                        line = line + chunk + " ";
+                        start += safeLength;
                     }
 
                     if (start < word.Length)
                     {
                         string remainingWord = word.SubstringSurrogateAware(start, word.Length - start);
-                        if (line.Length > 0)
+                        if (TextFormatting.HasVisibleText(line))
                         {
+                            string carry = TextFormatting.GetActiveFormattingPrefix(line);
                             processedText = processedText + line + Environment.NewLine;
                             lineCount++;
+                            line = carry;
                         }
-                        line = remainingWord + " ";
+                        line = line + remainingWord + " ";
                     }
-                    else if (line.Length > 0)
+                    else if (TextFormatting.HasVisibleText(line))
                     {
                         line = line.TrimEnd() + " ";
                     }
                     continue;
                 }
 
+                string lineCarry = TextFormatting.GetActiveFormattingPrefix(line);
                 processedText = processedText + line + Environment.NewLine;
                 lineCount++;
-                line = string.Empty;
+                line = lineCarry;
             }
 
             line = line + wordWithSpace;
@@ -119,15 +129,17 @@ public class TextParseReturnValue
 
             foreach (string word in wordArray)
             {
-                if (font.MeasureString(line + word).X > width)
+                if (TextFormatting.Measure(font, line + word).X > width)
                 {
-                    if (line.Length > 0)
+                    string carry = TextFormatting.GetActiveFormattingPrefix(line);
+
+                    if (TextFormatting.HasVisibleText(line))
                     {
                         returnValue.Add(line.Remove(line.Length - 1));
                     }
 
                     // Split individual words that are longer than the allowed width
-                    if (splitWords && font.MeasureString(word).X > width)
+                    if (splitWords && TextFormatting.Measure(font, word).X > width)
                     {
                         int start = 0;
                         while (start < word.Length)
@@ -137,27 +149,35 @@ public class TextParseReturnValue
                             while (low < high)
                             {
                                 int mid = (low + high + 1) / 2;
-                                if (font.MeasureString(word.SubstringSurrogateAware(start, mid)).X <= width)
+                                if (TextFormatting.Measure(font, word.SubstringSurrogateAware(start, mid)).X <= width)
                                     low = mid;
                                 else
                                     high = mid - 1;
                             }
                             if (low >= remaining)
                                 break;
-                            string chunk = word.SubstringSurrogateAware(start, low);
+
+                            int safeLength = TextFormatting.GetSafeSplitLength(word, start, low);
+                            if (safeLength <= 0)
+                                break;
+
+                            string chunk = word.SubstringSurrogateAware(start, safeLength);
                             if (chunk.Length == 0)
                                 break;
-                            returnValue.Add(chunk);
-                            start += chunk.Length;
+
+                            string chunkText = carry + chunk;
+                            returnValue.Add(chunkText);
+                            carry = TextFormatting.GetActiveFormattingPrefix(chunkText);
+                            start += safeLength;
                         }
 
                         line = start < word.Length
-                            ? word.SubstringSurrogateAware(start, word.Length - start) + " "
+                            ? carry + word.SubstringSurrogateAware(start, word.Length - start) + " "
                             : string.Empty;
                         continue;
                     }
 
-                    line = word + " ";
+                    line = carry + word + " ";
                     continue;
                 }
 

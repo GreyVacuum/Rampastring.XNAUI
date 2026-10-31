@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -100,7 +101,7 @@ public static class FontManager
         if (fontIndex < 0 || fontIndex >= fonts.Count)
             throw new IndexOutOfRangeException($"Invalid font index. {fonts.Count} fonts loaded, requested index: {fontIndex}");
 
-        return fonts[fontIndex].MeasureString(text);
+        return fonts[fontIndex].MeasureString(TextFormatting.Strip(text));
     }
 
     /// <summary>
@@ -503,6 +504,9 @@ public static class FontManager
         if (str == null)
             throw new ArgumentNullException(nameof(str));
 
+        if (TextFormatting.ContainsFormatting(str))
+            return TextFormatting.TruncateToWidth(font, str, maxWidth);
+
         if (string.IsNullOrEmpty(str) || font.MeasureString(str).X <= maxWidth)
             return str;
 
@@ -551,7 +555,7 @@ public static class FontManager
         if (fontIndex < 0 || fontIndex >= fonts.Count)
             throw new IndexOutOfRangeException($"Invalid font index. {fonts.Count} fonts loaded, requested index: {fontIndex}");
 
-        return fonts[fontIndex].MeasureString(text);
+        return fonts[fontIndex].MeasureString(TextFormatting.Strip(text));
     }
 
     public static int GetTextYPadding(string text, int fontIndex, int containerHeight)
@@ -559,7 +563,7 @@ public static class FontManager
         if (fontIndex < 0 || fontIndex >= fonts.Count)
             throw new IndexOutOfRangeException($"Invalid font index. {fonts.Count} fonts loaded, requested index: {fontIndex}");
 
-        return fonts[fontIndex].GetTextYPadding(containerHeight, text);
+        return fonts[fontIndex].GetTextYPadding(containerHeight, TextFormatting.Strip(text));
     }
 
     public static int GetSingleLineTextYPadding(int fontIndex, int containerHeight)
@@ -574,7 +578,13 @@ public static class FontManager
         if (fontIndex < 0 || fontIndex >= fonts.Count)
             throw new IndexOutOfRangeException($"Invalid font index. {fonts.Count} fonts loaded, requested index: {fontIndex}");
 
-        fonts[fontIndex].DrawString(spriteBatch, text, location, color, scale, depth);
+        if (!TextFormatting.ContainsFormatting(text))
+        {
+            fonts[fontIndex].DrawString(spriteBatch, text, location, color, scale, depth);
+            return;
+        }
+
+        DrawFormattedString(spriteBatch, text, fontIndex, location, color, scale, depth, false, 0f);
     }
 
     public static void DrawStringWithShadow(SpriteBatch spriteBatch, string text, int fontIndex, Vector2 location, Color color, float scale = 1.0f, float shadowDistance = 1.0f, float depth = 0f)
@@ -582,14 +592,132 @@ public static class FontManager
         if (fontIndex < 0 || fontIndex >= fonts.Count)
             throw new IndexOutOfRangeException($"Invalid font index. {fonts.Count} fonts loaded, requested index: {fontIndex}");
 
-        Color shadowColor;
+        if (!TextFormatting.ContainsFormatting(text))
+        {
+            Color shadowColor;
 #if XNA
-        shadowColor = new Color(0, 0, 0, color.A);
+            shadowColor = new Color(0, 0, 0, color.A);
 #else
-        shadowColor = UISettings.ActiveSettings.TextShadowColor * (color.A / 255.0f);
+            shadowColor = UISettings.ActiveSettings.TextShadowColor * (color.A / 255.0f);
 #endif
 
-        fonts[fontIndex].DrawString(spriteBatch, text, new Vector2(location.X + shadowDistance, location.Y + shadowDistance), shadowColor, scale, depth);
-        fonts[fontIndex].DrawString(spriteBatch, text, location, color, scale, depth);
+            fonts[fontIndex].DrawString(spriteBatch, text, new Vector2(location.X + shadowDistance, location.Y + shadowDistance), shadowColor, scale, depth);
+            fonts[fontIndex].DrawString(spriteBatch, text, location, color, scale, depth);
+            return;
+        }
+
+        DrawFormattedString(spriteBatch, text, fontIndex, location, color, scale, depth, true, shadowDistance);
+    }
+
+    private static readonly Random obfuscationRandom = new Random();
+    private const string ObfuscationCharset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    /// <summary>
+    /// Draws a string that contains Minecraft-style formatting codes. Each run
+    /// produced by the parser is positioned after the measured width of the
+    /// previous run, and its color overrides the base color passed by the caller.
+    /// </summary>
+    private static void DrawFormattedString(SpriteBatch spriteBatch, string text, int fontIndex, Vector2 location,
+        Color color, float scale, float depth, bool withShadow, float shadowDistance)
+    {
+        List<FormattedTextRun> runs = TextFormatting.Parse(text);
+        if (runs.Count == 0)
+            return;
+
+        IFont font = fonts[fontIndex];
+        Vector2 plainSize = font.MeasureString(TextFormatting.Strip(text));
+        int lineHeight = (int)Math.Ceiling(plainSize.Y * scale);
+
+        // Obfuscated text must use the same randomized run for both the shadow
+        // pass and the main pass, so prepare the runs up front.
+        var preparedRuns = new List<(FormattedTextRun Run, string Text, float Width)>(runs.Count);
+
+        foreach (FormattedTextRun run in runs)
+        {
+            if (run.Text.Length == 0)
+                continue;
+
+            string runText = run.Obfuscated ? Obfuscate(run.Text) : run.Text;
+            preparedRuns.Add((run, runText, font.MeasureString(runText).X * scale));
+        }
+
+        if (withShadow)
+        {
+            float shadowX = location.X;
+
+            foreach (var prepared in preparedRuns)
+            {
+                Color runColor = prepared.Run.Color ?? color;
+#if XNA
+                Color shadowColor = new Color(0, 0, 0, runColor.A);
+#else
+                Color shadowColor = UISettings.ActiveSettings.TextShadowColor * (runColor.A / 255.0f);
+#endif
+
+                DrawTextRun(spriteBatch, font, prepared.Run, prepared.Text, new Vector2(shadowX + shadowDistance, location.Y + shadowDistance),
+                    shadowColor, scale, depth, lineHeight, false);
+
+                shadowX += prepared.Width;
+            }
+        }
+
+        float x = location.X;
+
+        foreach (var prepared in preparedRuns)
+        {
+            Color runColor = prepared.Run.Color ?? color;
+            DrawTextRun(spriteBatch, font, prepared.Run, prepared.Text, new Vector2(x, location.Y), runColor, scale, depth, lineHeight, true);
+            x += prepared.Width;
+        }
+    }
+
+    private static void DrawTextRun(SpriteBatch spriteBatch, IFont font, FormattedTextRun run, string text, Vector2 location,
+        Color color, float scale, float depth, int lineHeight, bool drawDecorations)
+    {
+        font.DrawString(spriteBatch, text, location, color, scale, depth);
+
+        if (run.Bold)
+        {
+            // FontStashSharp does not expose per-draw bold weights, so bold is
+            // approximated by overdrawing the glyphs with a one-pixel offset.
+            float boldOffset = Math.Max(1f, scale);
+            font.DrawString(spriteBatch, text, new Vector2(location.X + boldOffset, location.Y), color, scale, depth);
+        }
+
+        if (!drawDecorations || (!run.Underlined && !run.Strikethrough))
+            return;
+
+        int width = (int)Math.Round(font.MeasureString(text).X * scale);
+        if (width <= 0)
+            return;
+
+        int height = lineHeight > 0 ? lineHeight : (int)Math.Round(font.MeasureString(text).Y * scale);
+
+        if (run.Underlined)
+        {
+            spriteBatch.Draw(Renderer.WhitePixel,
+                new Rectangle((int)location.X, (int)location.Y + height - 1, width, 1), color);
+        }
+
+        if (run.Strikethrough)
+        {
+            spriteBatch.Draw(Renderer.WhitePixel,
+                new Rectangle((int)location.X, (int)location.Y + (height / 2), width, 1), color);
+        }
+    }
+
+    private static string Obfuscate(string text)
+    {
+        var builder = new StringBuilder(text.Length);
+
+        foreach (char character in text)
+        {
+            // Preserve whitespace so that the text keeps its layout.
+            builder.Append(char.IsWhiteSpace(character)
+                ? character
+                : ObfuscationCharset[obfuscationRandom.Next(ObfuscationCharset.Length)]);
+        }
+
+        return builder.ToString();
     }
 }

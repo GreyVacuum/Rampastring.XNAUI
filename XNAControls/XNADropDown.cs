@@ -827,6 +827,14 @@ public class XNADropDown : XNAControl
                     {
                         displayText = string.Empty;
                     }
+                    else if (TextFormatting.ContainsFormatting(item.Text))
+                    {
+                        // Truncate at a formatting code boundary so that colors
+                        // survive the ellipsis.
+                        displayText = Renderer.GetStringWithLimitedWidth(item.Text, FontIndex, (int)maxWidth);
+                        if (ShowEllipsisOnOverflow)
+                            displayText += ellipsis;
+                    }
                     else
                     {
                         int bestFit = 0;

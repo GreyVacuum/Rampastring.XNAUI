@@ -37,6 +37,12 @@ public static class Renderer
 
     private static Texture2D whitePixelTexture;
 
+    /// <summary>
+    /// A 1x1 white texture, used by the font renderer for text decorations
+    /// such as underlines and strikethrough lines.
+    /// </summary>
+    internal static Texture2D WhitePixel => whitePixelTexture;
+
     private static readonly LinkedList<SpriteBatchSettings> settingStack = new LinkedList<SpriteBatchSettings>();
 
     internal static SpriteBatchSettings CurrentSettings;

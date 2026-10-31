@@ -202,7 +202,10 @@ public class XNATextRenderer : XNAControl
             else
                 preparedTextLines[preparedTextLines.Count - 1].AddPart(textPart);
 
-            var newTextPart = new XNATextPart(postNewlineText, part.FontIndex, part.Scale, part.Color, part.Underlined);
+            // Keep the formatting that is active at the end of the previous line
+            // so that colors are not lost across a line break.
+            string newlineCarry = TextFormatting.GetActiveFormattingPrefix(remainingTextForThisPart);
+            var newTextPart = new XNATextPart(newlineCarry + postNewlineText, part.FontIndex, part.Scale, part.Color, part.Underlined);
             partsToProcess.Insert(i + 1, newTextPart);
             preparedTextLines.Add(new XNATextLine(new List<XNATextPart>(1)));
         }
@@ -285,9 +288,10 @@ public class XNATextRenderer : XNAControl
                             }
                             else
                             {
+                                string wrapCarry = TextFormatting.GetActiveFormattingPrefix(currentOutputPart.Text);
                                 line.Parts.Add(currentOutputPart);
                                 remainingWidth = maxLineWidth - wordWidthWithSpace;
-                                currentOutputPart = new XNATextPart(wordWithSpace, textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
+                                currentOutputPart = new XNATextPart(wrapCarry + wordWithSpace, textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
                                 line = new XNATextLine(new List<XNATextPart>());
                                 renderedTextLines.Add(line);
                             }
@@ -297,6 +301,7 @@ public class XNATextRenderer : XNAControl
                             // True only when the accumulated text so far is pure leading
                             // indentation (e.g. the spaces used to indent a paragraph).
                             bool leadingWhitespace = string.IsNullOrWhiteSpace(currentOutputPart.Text) && currentOutputPart.Text.Length > 0;
+                            string chunkCarry = TextFormatting.GetActiveFormattingPrefix(currentOutputPart.Text);
 
                             if (!leadingWhitespace && currentOutputPart.Text.Length > 0)
                             {
@@ -325,26 +330,31 @@ public class XNATextRenderer : XNAControl
                                 if (low >= remaining)
                                     break;
 
-                                string chunk = word.SubstringSurrogateAware(start, low);
+                                int safeLength = TextFormatting.GetSafeSplitLength(word, start, low);
+                                if (safeLength <= 0)
+                                    break;
+
+                                string chunk = word.SubstringSurrogateAware(start, safeLength);
                                 if (chunk.Length == 0)
                                     break;
 
                                 // When carrying leading indentation, attach it to the first
                                 // chunk so the indent stays on the same line as the start of
                                 // the word instead of being orphaned onto its own empty line.
-                                string chunkText = (firstChunk && leadingWhitespace) ? currentOutputPart.Text + chunk : chunk;
+                                string chunkText = (firstChunk && leadingWhitespace) ? currentOutputPart.Text + chunk : chunkCarry + chunk;
                                 var chunkPart = new XNATextPart(chunkText, textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
                                 line.Parts.Add(chunkPart);
+                                chunkCarry = TextFormatting.GetActiveFormattingPrefix(chunkText);
                                 firstChunk = false;
                                 line = new XNATextLine(new List<XNATextPart>());
                                 renderedTextLines.Add(line);
-                                start += chunk.Length;
+                                start += safeLength;
                             }
 
                             if (start < word.Length)
                             {
                                 string remainingWord = word.SubstringSurrogateAware(start, word.Length - start);
-                                string prefix = (firstChunk && leadingWhitespace) ? currentOutputPart.Text : string.Empty;
+                                string prefix = (firstChunk && leadingWhitespace) ? currentOutputPart.Text : chunkCarry;
                                 currentOutputPart = new XNATextPart(prefix + remainingWord + " ", textPart.FontIndex, textPart.Scale, textPart.Color, textPart.Underlined);
                                 remainingWidth = maxLineWidth - (int)Renderer.GetTextDimensions(currentOutputPart.Text, textPart.FontIndex).X;
                             }
