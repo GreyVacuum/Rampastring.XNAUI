@@ -175,6 +175,18 @@ public class XNACheckBox : XNAControl
                 TextPadding = Conversions.IntFromString(value, TextPadding);
                 SetTextPositionAndSize();
                 return;
+            case "CheckedTexture":
+                CheckedTexture = AssetLoader.LoadTexture(value);
+                return;
+            case "ClearTexture":
+                ClearTexture = AssetLoader.LoadTexture(value);
+                return;
+            case "DisabledCheckedTexture":
+                DisabledCheckedTexture = AssetLoader.LoadTexture(value);
+                return;
+            case "DisabledClearTexture":
+                DisabledClearTexture = AssetLoader.LoadTexture(value);
+                return;
         }
 
         base.ParseControlINIAttribute(iniFile, key, value);
