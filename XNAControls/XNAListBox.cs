@@ -3,7 +3,6 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 #if WINFORMS
 using Rampastring.XNAUI.Input;
-using TextCopy;
 #endif
 using System;
 using System.Collections.Generic;
@@ -68,7 +67,7 @@ public class XNAListBox : XNAPanel
     public Color FocusColor
     {
         get => _focusColor ?? UISettings.ActiveSettings.FocusColor;
-        set { _focusColor = value; }
+        set => _focusColor = value;
     }
 
     private Color? _defaultItemColor;
@@ -76,7 +75,7 @@ public class XNAListBox : XNAPanel
     public Color DefaultItemColor
     {
         get => _defaultItemColor ?? UISettings.ActiveSettings.AltColor;
-        set { _defaultItemColor = value; }
+        set => _defaultItemColor = value;
     }
 
     private int _lineHeight;
@@ -202,7 +201,7 @@ public class XNAListBox : XNAPanel
     private int selectedIndex = -1;
     public int SelectedIndex
     {
-        get { return selectedIndex; }
+        get => selectedIndex;
         set
         {
             int oldSelectedIndex = selectedIndex;
@@ -231,10 +230,7 @@ public class XNAListBox : XNAPanel
     private int hoveredIndex = -1;
     public int HoveredIndex
     {
-        get
-        {
-            return hoveredIndex;
-        }
+        get => hoveredIndex;
         set
         {
             int oldHoveredIndex = hoveredIndex;
@@ -262,7 +258,7 @@ public class XNAListBox : XNAPanel
     /// </summary>
     public int NumberOfLinesOnList
     {
-        get { return (ClientRectangle.Height - 4) / LineHeight; }
+        get => (ClientRectangle.Height - 4) / LineHeight;
     }
 
     private bool _enableScrollbar = true;
@@ -272,7 +268,7 @@ public class XNAListBox : XNAPanel
     /// </summary>
     public bool EnableScrollbar
     {
-        get { return _enableScrollbar; }
+        get => _enableScrollbar;
         set
         {
             _enableScrollbar = value;
@@ -308,10 +304,10 @@ public class XNAListBox : XNAPanel
     {
         switch (key)
         {
-            case "EnableScrollbar":
+            case nameof(EnableScrollbar):
                 EnableScrollbar = Conversions.BooleanFromString(value, true);
                 return;
-            case "DrawSelectionUnderScrollbar":
+            case nameof(DrawSelectionUnderScrollbar):
                 DrawSelectionUnderScrollbar = Conversions.BooleanFromString(value, true);
                 return;
             case nameof(AllowMultiLineItems):
@@ -462,14 +458,23 @@ public class XNAListBox : XNAPanel
             width -= textureWidth + ITEM_TEXT_TEXTURE_MARGIN;
         }
 
-        // Apply word wrap if needed
-        List<string> textLines = Renderer.GetFixedTextLines(listBoxItem.Text, FontIndex, width);
+        List<string> textLines;
+        if (AllowMultiLineItems)
+        {
+            // Apply word wrap if needed
+            textLines = Renderer.GetFixedTextLines(listBoxItem.Text, FontIndex, width);
+        }
+        else
+        {
+            string firstLine = listBoxItem.Text?.Split(new[] { '\r', '\n' }, StringSplitOptions.None)?[0] ?? string.Empty;
+            string truncatedFirstLine = Renderer.GetStringWithLimitedWidth(firstLine, FontIndex, width);
+            textLines = [truncatedFirstLine];
+        }
+
         if (textLines.Count == 0)
             textLines.Add(string.Empty);
-        listBoxItem.TextLines = textLines;
 
-        if (textLines.Count > 1 && !AllowMultiLineItems)
-            textLines.RemoveRange(1, textLines.Count - 1);
+        listBoxItem.TextLines = textLines;
 
         if (textLines.Count == 1)
         {
@@ -683,13 +688,7 @@ public class XNAListBox : XNAPanel
 
         if (e.PressedKey == Keys.C && Keyboard.IsCtrlHeldDown())
         {
-            try
-            {
-                ClipboardService.SetText(SelectedItem.Text);
-            }
-            catch (Exception)
-            {
-            }
+            Clipboard.SetText(SelectedItem.Text);
         }
     }
 #endif

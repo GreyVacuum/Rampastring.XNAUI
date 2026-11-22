@@ -26,7 +26,13 @@ public class XNAPanel : XNAControl
 
             return UISettings.ActiveSettings.PanelBorderColor;
         }
-        set { _borderColor = value; }
+        set => _borderColor = value;
+    }
+
+    public int? BorderThickness
+    {
+        get => field ?? UISettings.ActiveSettings.BorderThickness;
+        set => field = value;
     }
 
     public virtual bool DrawBorders { get; set; } = true;
@@ -191,14 +197,14 @@ public class XNAPanel : XNAControl
         }
     }
 
-    protected void DrawPanel()
+    protected virtual void DrawPanel()
     {
         DrawBackgroundTexture(BackgroundTexture, RemapColor);
     }
 
-    protected void DrawPanelBorders()
+    protected virtual void DrawPanelBorders()
     {
-        DrawRectangle(new Rectangle(0, 0, Width, Height), BorderColor);
+        DrawRectangle(new Rectangle(0, 0, Width, Height), BorderColor, BorderThickness.Value);
     }
 
     public override void Draw(GameTime gameTime)

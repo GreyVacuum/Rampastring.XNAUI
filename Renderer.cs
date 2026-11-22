@@ -61,8 +61,7 @@ public static class Renderer
     }
 
     /// <summary>
-    /// Reloads TTF fonts when the final display scale needs a higher-resolution
-    /// glyph atlas. A higher factor explicitly configured in Fonts.ini is retained.
+    /// Reloads TTF fonts when the final display scale needs a higher-resolution glyph atlas.
     /// </summary>
     internal static void ReloadFontsForScale(float scaleRatio)
     {
@@ -78,7 +77,7 @@ public static class Renderer
     public static List<IFont> GetFontList() => FontManager.GetFontList();
 
     /// <summary>
-    /// Returns a version of the given string that the font renderer can safely display without crashing.
+    /// Returns a version of the given string that the font renderer can safely display.
     /// </summary>
     /// <param name="str">The string.</param>
     /// <param name="fontIndex">The index of the font.</param>

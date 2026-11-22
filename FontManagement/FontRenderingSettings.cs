@@ -1,4 +1,6 @@
-using FontStashSharp;
+﻿using FontStashSharp;
+using Rampastring.Tools;
+using System;
 
 namespace Rampastring.XNAUI.FontManagement;
 
@@ -43,4 +45,37 @@ public class FontRenderingSettings
     /// <see cref="GlyphRenderResult.NoAntialiasing"/> produces hard 1-bit edges for pixel-art fonts.
     /// </summary>
     public GlyphRenderResult GlyphRenderResult { get; set; } = GlyphRenderResult.Premultiplied;
+
+    public void ReadSettingsFromIniSection(IniSection iniSection)
+    {
+        int kernelWidth = iniSection.GetIntValue(nameof(KernelWidth), 0);
+        int kernelHeight = iniSection.GetIntValue(nameof(KernelHeight), 0);
+        float resolutionFactor = iniSection.GetSingleValue(nameof(FontResolutionFactor), 1f);
+        int textureWidth = iniSection.GetIntValue(nameof(TextureWidth), 1024);
+        int textureHeight = iniSection.GetIntValue(nameof(TextureHeight), 1024);
+        string glyphResultStr = iniSection.GetStringValue(nameof(GlyphRenderResult), nameof(GlyphRenderResult.Premultiplied));
+
+        if (kernelWidth < 0)
+            kernelWidth = 0;
+        if (kernelHeight < 0)
+            kernelHeight = 0;
+        if (resolutionFactor < 0f)
+            resolutionFactor = 0f;
+        if (textureWidth < 1)
+            textureWidth = 1;
+        if (textureHeight < 1)
+            textureHeight = 1;
+
+        if (!Enum.TryParse<GlyphRenderResult>(glyphResultStr, true, out var glyphResult))
+            glyphResult = GlyphRenderResult.Premultiplied;
+
+        KernelWidth = kernelWidth;
+        KernelHeight = kernelHeight;
+        FontResolutionFactor = resolutionFactor;
+        TextureWidth = textureWidth;
+        TextureHeight = textureHeight;
+        GlyphRenderResult = glyphResult;
+
+        Logger.Log($"Font rendering settings: KernelWidth={KernelWidth}, KernelHeight={KernelHeight}, FontResolutionFactor={FontResolutionFactor}, TextureSize={TextureWidth}x{TextureHeight}, GlyphRenderResult={GlyphRenderResult}");
+    }
 }

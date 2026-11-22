@@ -1,10 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Rampastring.Tools;
-using Rampastring.XNAUI.Extensions;
 using Rampastring.XNAUI.FontManagement;
 using System;
 using System.Collections.Generic;
+using Rampastring.XNAUI.Extensions;
 
 namespace Rampastring.XNAUI.XNAControls;
 
@@ -28,6 +28,7 @@ public class XNADropDown : XNAControl
     {
         ItemHeight = UISettings.ActiveSettings.DropDownDefaultItemHeight.GetValueOrDefault((int)FontManager.GetTextDimensions("Test String @", FontIndex).Y + 1);
         Height = ItemHeight + 2;
+        HandlesDragging = true;
     }
 
     public delegate void SelectedIndexChangedEventHandler(object sender, EventArgs e);
@@ -48,6 +49,12 @@ public class XNADropDown : XNAControl
     /// </summary>
     public int ItemHeight { get; set; }
 
+    public int? BorderThickness
+    {
+        get => field ?? UISettings.ActiveSettings.BorderThickness;
+        set => field = value;
+    }
+
     public List<XNADropDownItem> Items = new List<XNADropDownItem>();
 
     /// <summary>
@@ -62,7 +69,7 @@ public class XNADropDown : XNAControl
     /// </summary>
     public bool AllowDropDown
     {
-        get { return _allowDropDown; }
+        get => _allowDropDown;
         set
         {
             _allowDropDown = value;
@@ -80,7 +87,7 @@ public class XNADropDown : XNAControl
     /// </summary>
     public int SelectedIndex
     {
-        get { return _selectedIndex; }
+        get => _selectedIndex;
         set
         {
             int oldSelectedIndex = _selectedIndex;
@@ -138,55 +145,51 @@ public class XNADropDown : XNAControl
 
     public Color BorderColor
     {
-        get
-        {
-            return _borderColor ?? UISettings.ActiveSettings.PanelBorderColor;
-        }
-        set { _borderColor = value; }
+        get => _borderColor ?? UISettings.ActiveSettings.PanelBorderColor;
+        set => _borderColor = value;
     }
 
     private Color? _focusColor;
 
     public Color FocusColor
     {
-        get
-        {
-            return _focusColor ?? UISettings.ActiveSettings.FocusColor;
-        }
-        set { _focusColor = value; }
+        get => _focusColor ?? UISettings.ActiveSettings.FocusColor;
+        set => _focusColor = value;
     }
 
     private Color? _backColor;
 
     public Color BackColor
     {
-        get
-        {
-            return _backColor ?? UISettings.ActiveSettings.BackgroundColor;
-        }
-        set { _backColor = value; }
+        get => _backColor ?? UISettings.ActiveSettings.DropDownBackgroundColor;
+        set => _backColor = value;
+    }
+
+    private Color? _listBackgroundColor;
+
+    /// <summary>
+    /// The background color of the drop down's list of selectable elements when the drop down is open.
+    /// </summary>
+    public Color ListBackgroundColor
+    {
+        get => _listBackgroundColor ?? UISettings.ActiveSettings.BackgroundColor;
+        set => _listBackgroundColor = value;
     }
 
     private Color? _textColor;
 
     public Color TextColor
     {
-        get
-        {
-            return _textColor ?? UISettings.ActiveSettings.AltColor;
-        }
-        set { _textColor = value; }
+        get => _textColor ?? UISettings.ActiveSettings.AltColor;
+        set => _textColor = value;
     }
 
     private Color? _disabledItemColor;
 
     public Color DisabledItemColor
     {
-        get
-        {
-            return _disabledItemColor ?? UISettings.ActiveSettings.DisabledItemColor;
-        }
-        set { _disabledItemColor = value; }
+        get => _disabledItemColor ?? UISettings.ActiveSettings.DisabledItemColor;
+        set => _disabledItemColor = value;
     }
 
     /// <summary>
@@ -430,8 +433,7 @@ public class XNADropDown : XNAControl
     /// Gets the text color of a drop-down item.
     /// </summary>
     /// <param name="item">The item.</param>
-    protected Color GetItemTextColor(XNADropDownItem item) =>
-        item.TextColor ?? TextColor;
+    protected Color GetItemTextColor(XNADropDownItem item) => item.TextColor ?? TextColor;
 
     public override void Update(GameTime gameTime)
     {
@@ -886,7 +888,7 @@ public class XNADropDown : XNAControl
 
         FillRectangle(new Rectangle(dropDownRect.X + 1, dropDownRect.Y + 1,
             dropDownRect.Width - 2, dropDownRect.Height - 2), BackColor);
-        DrawRectangle(dropDownRect, BorderColor);
+        DrawRectangle(dropDownRect, BorderColor, BorderThickness.Value);
 
         if (SelectedIndex > -1 && SelectedIndex < Items.Count)
         {
@@ -904,9 +906,8 @@ public class XNADropDown : XNAControl
             if (item.Text != null)
             {
                 string displayText = GetDisplayTextForSelectedItem(item, textX);
-                int textY = dropDownRect.Y + Renderer.GetTextYPadding(displayText, FontIndex, dropDownRect.Height);
-                DrawStringWithShadow(displayText, FontIndex,
-                    new Vector2(textX, textY), GetItemTextColor(item));
+                int textY = dropDownRect.Y + Renderer.GetSingleLineTextYPadding(FontIndex, dropDownRect.Height);
+                DrawStringWithShadow(displayText, FontIndex, new Vector2(textX, textY), GetItemTextColor(item));
             }
         }
 
@@ -979,7 +980,7 @@ public class XNADropDown : XNAControl
         }
         else
         {
-            FillRectangle(new Rectangle(1, y, itemWidth - 2, ItemHeight), BackColor);
+            FillRectangle(new Rectangle(1, y, itemWidth - 2, ItemHeight), ListBackgroundColor);
         }
 
         int textX = 2;

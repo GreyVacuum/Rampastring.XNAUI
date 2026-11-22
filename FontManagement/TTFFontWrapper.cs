@@ -22,8 +22,14 @@ public class TTFFontWrapper : IFont
 
     public Vector2 MeasureString(string text)
     {
-        var bounds = _font.MeasureString(GetSafeString(text));
-        return new Vector2(bounds.X, bounds.Y);
+        var measuredSize = _font.MeasureString(text);
+
+        // FontStashSharp reports the bottom of the lowest glyph as the Y dimension,
+        // making equally formatted strings have different heights depending on their
+        // characters. Use the font's line height to match SpriteFont.MeasureString and
+        // keep text parts on a shared line aligned to the same draw origin.
+        int height = text.Length == 0 ? 0 : _font.LineHeight * (text.Count(static c => c == '\n') + 1);
+        return new Vector2(measuredSize.X, height);
     }
 
     /// <summary>
@@ -35,17 +41,21 @@ public class TTFFontWrapper : IFont
     /// </summary>
     public int GetVerticalCenteringValue() => _verticalCenteringValue;
 
-    public int GetTextYPadding(int containerHeight, string text) => string.IsNullOrEmpty(text) ? (containerHeight / 2) : (containerHeight - GetVerticalCenteringValue() - _font.LineHeight * text.Count(c => c == '\n')) / 2;
+    public int GetTextYPadding(int containerHeight, string text) => string.IsNullOrEmpty(text) ? (containerHeight / 2) : (containerHeight - GetVerticalCenteringValue() - _font.LineHeight * text.Count(static c => c == '\n')) / 2;
 
     public int GetSingleLineTextYPadding(int containerHeight) => (containerHeight - GetVerticalCenteringValue()) / 2;
+
 
     public void DrawString(SpriteBatch spriteBatch, string text, Vector2 location, Color color, float scale, float depth)
     {
         var vectorScale = new Vector2(scale, scale);
-
         text = GetSafeString(text);
-
         spriteBatch.DrawString(_font, text, location, color, 0f, Vector2.Zero, vectorScale, depth);
+    }
+
+    public void DrawString(SpriteBatch spriteBatch, StringSegment text, Vector2 location, Color color, float rotation, Vector2 origin, Vector2 scale, float depth)
+    {
+        spriteBatch.DrawString(_font, text, location, color, rotation, origin, scale, depth);
     }
 
     /// <summary>
@@ -68,11 +78,6 @@ public class TTFFontWrapper : IFont
         return SanitizeStringForRendering(str);
     }
 
-    /// <summary>
-    /// Replaces unpaired UTF-16 surrogates with U+FFFD. Returns the original
-    /// string reference unchanged when the input is already valid (the common case),
-    /// to avoid allocations on the rendering hot path.
-    /// </summary>
     private static string SanitizeStringForRendering(string str)
     {
         if (str is null)
@@ -106,8 +111,7 @@ public class TTFFontWrapper : IFont
             return str;
 
 #if DEBUG
-        System.Diagnostics.Debug.WriteLine($"There is still an unpaired surrogate at index {firstBad} in string \"{str}\". If the string comes from Internet, have you called GetSafeString before rendering? If the string does not come from Internet, how could this happen?");
-        System.Diagnostics.Debugger.Break();
+        System.Diagnostics.Debug.WriteLine($"There is still an unpaired surrogate at index {firstBad} in string \"{str}\". Have you called GetSafeString before rendering?");
 #endif
 
         var sb = new StringBuilder(str.Length);

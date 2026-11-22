@@ -624,6 +624,12 @@ public class WindowManager : DrawableGameComponent
     /// <param name="control">The control to remove.</param>
     public void RemoveControl(XNAControl control)
     {
+        if (SelectedControl != null && (control == SelectedControl || control.IsParentOf(SelectedControl)))
+            SelectedControl = null;
+
+        if (FocusedControl != null && (control == FocusedControl || control.IsParentOf(FocusedControl)))
+            FocusedControl = null;
+
         Controls.Remove(control);
     }
 

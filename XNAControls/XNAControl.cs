@@ -1,13 +1,13 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Rampastring.Tools;
+using Rampastring.XNAUI.Extensions;
+using Rampastring.XNAUI.Input;
 using System;
 using System.Collections.Generic;
-using Rampastring.Tools;
-using Rampastring.XNAUI.Input;
 using System.Collections.ObjectModel;
-using System.Linq;
-using Microsoft.Xna.Framework.Graphics;
 using System.Globalization;
-using Rampastring.XNAUI.Extensions;
+using System.Linq;
 
 namespace Rampastring.XNAUI.XNAControls;
 
@@ -47,6 +47,16 @@ public class XNAControl : DrawableGameComponent
     public WindowManager WindowManager { get; private set; }
 
     #region Events
+
+    /// <summary>
+    /// Raised when the control has been initialized.
+    /// </summary>
+    public event EventHandler OnInitialized;
+
+    /// <summary>
+    /// Raised when the control has been killed.
+    /// </summary>
+    public event EventHandler OnKilled;
 
     /// <summary>
     /// Raised when the mouse cursor enters the control's area.
@@ -222,7 +232,7 @@ public class XNAControl : DrawableGameComponent
     /// </summary>
     public XNAControl Parent
     {
-        get { return parent; }
+        get => parent;
         set
         {
             parent = value;
@@ -288,7 +298,7 @@ public class XNAControl : DrawableGameComponent
     /// </summary>
     public ReadOnlyCollection<XNAControl> Children
     {
-        get { return new ReadOnlyCollection<XNAControl>(_children); }
+        get => new ReadOnlyCollection<XNAControl>(_children);
     }
 
 
@@ -303,10 +313,7 @@ public class XNAControl : DrawableGameComponent
     /// </summary>
     public Rectangle ClientRectangle
     {
-        get
-        {
-            return new Rectangle(_x, _y, _width, _height);
-        }
+        get => new Rectangle(_x, _y, _width, _height);
         set
         {
             _x = value.X;
@@ -397,7 +404,7 @@ public class XNAControl : DrawableGameComponent
 
     public int ScaledWidth => Width * Scaling;
 
-    public int TotalScaledWidth => Height * GetTotalScalingRecursive();
+    public int TotalScaledWidth => Width * GetTotalScalingRecursive();
 
     /// <summary>
     /// The height of the control.
@@ -473,10 +480,7 @@ public class XNAControl : DrawableGameComponent
     private float alpha = 1.0f;
     public virtual float Alpha
     {
-        get
-        {
-            return alpha;
-        }
+        get => alpha;
         set
         {
             if (value > 1.0f)
@@ -531,12 +535,23 @@ public class XNAControl : DrawableGameComponent
             if (WindowManager.ActiveControl == null)
                 return false;
 
-            if (WindowManager.ActiveControl.Detached)
-                return false;
+            // Check if we are a parent of the active control. If yes, consider us active too,
+            // unless the active control is a child of our own detached child.
+            var control = WindowManager.ActiveControl;
+            while (control != null)
+            {
+                if (control.Detached)
+                    return false;
 
-            return IsParentOf(WindowManager.ActiveControl);
+                if (control.Parent == this)
+                    return true;
+
+                control = control.Parent;
+            }
+
+            return false;
         }
-        internal set 
+        internal set
         {
             if (value == true)
                 WindowManager.ActiveControl = this;
@@ -573,7 +588,7 @@ public class XNAControl : DrawableGameComponent
     /// </summary>
     public ControlDrawMode DrawMode
     {
-        get { return drawMode; }
+        get => drawMode;
         set
         {
             if (Initialized)
@@ -662,6 +677,14 @@ public class XNAControl : DrawableGameComponent
     /// in unique render target mode.
     /// </summary>
     protected RenderTarget2D RenderTarget { get; set; }
+
+    /// <summary>
+    /// The render target that was active immediately before this control's
+    /// unique render target was pushed. This contains the content drawn behind
+    /// the control and is only available from <see cref="Draw(GameTime)"/> when
+    /// <see cref="DrawMode"/> is <see cref="ControlDrawMode.UNIQUE_RENDER_TARGET"/>.
+    /// </summary>
+    protected RenderTarget2D BackdropRenderTarget { get; private set; }
 
     /// <summary>
     /// Determines whether the control's <see cref="Initialize"/> method
@@ -1034,6 +1057,8 @@ public class XNAControl : DrawableGameComponent
 
         Initialized = true;
         _initScaling = _scaling;
+
+        OnInitialized?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnEnabledChanged(object sender, EventArgs args)
@@ -1275,6 +1300,7 @@ public class XNAControl : DrawableGameComponent
         childrenCopy.ForEach(RemoveChild);
 
         Killed = true;
+        OnKilled?.Invoke(this, EventArgs.Empty);
     }
 
     public virtual void RefreshSize()
@@ -1395,7 +1421,7 @@ public class XNAControl : DrawableGameComponent
             if (IsRightPressedOn && !Cursor.RightDown)
                 IsRightPressedOn = false;
 
-            if (IsMiddlePressedOn && !Cursor.RightDown)
+            if (IsMiddlePressedOn && !Cursor.MiddleDown)
                 IsMiddlePressedOn = false;
         }
 
@@ -1466,11 +1492,14 @@ public class XNAControl : DrawableGameComponent
             RefreshRenderTarget();
 
         drawPoint = Point.Zero;
+        BackdropRenderTarget = RenderTargetStack.CurrentContext.RenderTarget;
         Renderer.PushRenderTarget(RenderTarget);
         GraphicsDevice.Clear(Color.Transparent);
         Draw(gameTime);
         Renderer.PopRenderTarget();
+        BackdropRenderTarget = null;
         Rectangle rect = RenderRectangle();
+        DrawBehindUniqueRenderTarget(rect);
         if (Scaling > 1 && Renderer.CurrentSettings.SamplerState != SamplerState.PointClamp)
         {
             Renderer.PushSettings(new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null));
@@ -1511,6 +1540,16 @@ public class XNAControl : DrawableGameComponent
         }
 
         Draw(gameTime);
+    }
+
+    /// <summary>
+    /// Draws content behind a control immediately before its unique render target
+    /// is composited onto the parent render target. Derived controls can use this
+    /// to render effects that extend beyond their own bounds, such as shadows.
+    /// </summary>
+    /// <param name="renderRectangle">The control's render rectangle within the parent render target.</param>
+    protected virtual void DrawBehindUniqueRenderTarget(Rectangle renderRectangle)
+    {
     }
 
     private void DrawUniqueRenderTarget(Rectangle renderRectangle)
@@ -1634,10 +1673,12 @@ public class XNAControl : DrawableGameComponent
     /// <param name="color">The color of the text.</param>
     /// <param name="scale">The scale of the text.</param>
     /// <param name="shadowDistance">How many distance units (typically pixels) the text shadow is offset from the text.</param>
-    public void DrawStringWithShadow(string text, int fontIndex, Vector2 location, Color color, float scale = 1.0f, float shadowDistance = 1.0f)
+    public void DrawStringWithShadow(string text, int fontIndex, Vector2 location, Color color, float scale = 1.0f, float? shadowDistance = null)
     {
+        float shadowDist = shadowDistance ?? UISettings.ActiveSettings.TextShadowDistance;
+
         Renderer.DrawStringWithShadow(text, fontIndex,
-            new Vector2(location.X + drawPoint.X, location.Y + drawPoint.Y), color, scale, shadowDistance);
+            new Vector2(location.X + drawPoint.X, location.Y + drawPoint.Y), color, scale, shadowDist);
     }
 
     /// <summary>

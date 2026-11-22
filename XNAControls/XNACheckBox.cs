@@ -20,6 +20,15 @@ public class XNACheckBox : XNAControl
     public XNACheckBox(WindowManager windowManager) : base(windowManager)
     {
         AlphaRate = UISettings.ActiveSettings.CheckBoxAlphaRate * 2.0;
+
+        // We can't know our final height by this point, but we can make an educated guess to help layout initialization.
+        if (UISettings.ActiveSettings.CheckBoxCheckedTexture != null)
+            Height = UISettings.ActiveSettings.CheckBoxCheckedTexture.Height;
+
+        CheckedTexture = UISettings.ActiveSettings.CheckBoxCheckedTexture;
+        ClearTexture = UISettings.ActiveSettings.CheckBoxClearTexture;
+        DisabledCheckedTexture = UISettings.ActiveSettings.CheckBoxDisabledCheckedTexture;
+        DisabledClearTexture = UISettings.ActiveSettings.CheckBoxDisabledClearTexture;
     }
 
     public event EventHandler CheckedChanged;
@@ -47,7 +56,7 @@ public class XNACheckBox : XNAControl
     /// </summary>
     public bool Checked
     {
-        get { return _checked; }
+        get => _checked;
         set
         {
             bool originalValue = _checked;
@@ -81,7 +90,7 @@ public class XNACheckBox : XNAControl
     public Color IdleColor
     {
         get => _idleColor ?? UISettings.ActiveSettings.TextColor;
-        set { _idleColor = value; }
+        set => _idleColor = value;
     }
 
     private Color? _highlightColor;
@@ -103,10 +112,7 @@ public class XNACheckBox : XNAControl
     /// </summary>
     public override string Text
     {
-        get
-        {
-            return base.Text;
-        }
+        get => base.Text;
 
         set
         {
@@ -127,18 +133,6 @@ public class XNACheckBox : XNAControl
 
     public override void Initialize()
     {
-        if (CheckedTexture == null)
-            CheckedTexture = UISettings.ActiveSettings.CheckBoxCheckedTexture;
-
-        if (ClearTexture == null)
-            ClearTexture = UISettings.ActiveSettings.CheckBoxClearTexture;
-
-        if (DisabledCheckedTexture == null)
-            DisabledCheckedTexture = UISettings.ActiveSettings.CheckBoxDisabledCheckedTexture;
-
-        if (DisabledClearTexture == null)
-            DisabledClearTexture = UISettings.ActiveSettings.CheckBoxDisabledClearTexture;
-
         SetTextPositionAndSize();
 
         if (Checked)
@@ -197,22 +191,28 @@ public class XNACheckBox : XNAControl
     /// </summary>
     protected virtual void SetTextPositionAndSize()
     {
-        if (CheckedTexture == null)
-            return;
+        int textureHeight = 0;
+        int textureWidth = 0;
+
+        if (CheckedTexture != null)
+        {
+            textureWidth = CheckedTexture.Width;
+            textureHeight = CheckedTexture.Height;
+        }
 
         if (!string.IsNullOrEmpty(Text))
         {
             Vector2 textDimensions = Renderer.GetTextDimensions(Text, FontIndex);
 
-            TextLocationY = Renderer.GetTextYPadding(Text, FontIndex, CheckedTexture.Height);
+            TextLocationY = Renderer.GetTextYPadding(Text, FontIndex, textureHeight);
 
-            Width = (int)textDimensions.X + TextPadding + CheckedTexture.Width;
-            Height = Math.Max((int)textDimensions.Y, CheckedTexture.Height);
+            Width = (int)textDimensions.X + TextPadding + textureWidth;
+            Height = Math.Max((int)textDimensions.Y, textureHeight);
         }
         else
         {
             Width = CheckedTexture.Width;
-            Height = CheckedTexture.Height;
+            Height = textureHeight;
         }
     }
 
